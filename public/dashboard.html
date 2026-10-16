@@ -1,123 +1,176 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard - PazaryeriOS</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel - Pazaryeri SaaS</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Inter',sans-serif;background:#f8f8f8;color:#111}
-nav{height:60px;background:#fff;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:10}
-.logo{font-weight:900;font-size:18px}.logo span{font-weight:400;color:#888}
-.wrap{max-width:1100px;margin:0 auto;padding:28px 24px;display:grid;gap:20px}
-.card{background:#fff;border:1px solid #eee;border-radius:16px;padding:22px}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-.market{border:1px solid #eee;border-radius:12px;padding:16px;transition:.2s}.bagli{border-color:#111;background:#f9f9f9}
-input,select{width:100%;padding:10px 12px;border:1px solid #e5e5e5;border-radius:10px;font-size:14px;box-sizing:border-box}
+*{box-sizing:border-box}body{font-family:Inter,sans-serif;background:#f6f7f9;margin:0}
+header{background:#111;color:#fff;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
+.wrap{padding:22px;max-width:1200px;margin:0 auto;display:grid;gap:18px}
+.card{background:#fff;padding:20px;border-radius:16px;box-shadow:0 2px 14px rgba(0,0,0,.05);border:1px solid #eee}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.grid4{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.market{border:1.5px solid #eee;border-radius:14px;padding:14px;position:relative;transition:.2s}
+.market.bagli{border-color:#111;background:#fafafa}
+.market:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.06)}
+.badge{padding:4px 9px;background:#111;color:#fff;border-radius:20px;font-size:11px;font-weight:700}
+.badge.green{background:#16a34a}.badge.gray{background:#e5e7eb;color:#555}
+input,select{width:100%;padding:11px 12px;margin:6px 0;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px}
 input:focus,select:focus{outline:none;border-color:#111}
-button{padding:10px 16px;background:#111;color:#fff;border:none;border-radius:100px;font-weight:600;cursor:pointer;font-size:13px;transition:.15s}button:hover{background:#222}
-.badge{padding:4px 10px;background:#111;color:#fff;border-radius:100px;font-size:11px;font-weight:600}
-table{width:100%;border-collapse:collapse}th{font-size:12px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:12px;text-align:left;border-bottom:1px solid #eee}td{padding:12px;border-bottom:1px solid #f5f5f5;font-size:14px}
-.stat-val{font-size:28px;font-weight:800;letter-spacing:-1px}.stat-label{font-size:12px;color:#888;font-weight:500;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
-@media(max-width:800px){.grid3{grid-template-columns:1fr}}
+button{padding:10px 18px;background:#111;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:14px}
+button.ghost{background:#fff;color:#111;border:1.5px solid #e5e7eb}
+button.danger{background:#fff;color:#ef4444;border:1.5px solid #fee2e2}
+table{width:100%;border-collapse:collapse}th,td{padding:11px;border-bottom:1px solid #f0f0f0;text-align:left;font-size:13px}
+.formRow{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.formRow>div{flex:1;min-width:150px}
+#connMsg{padding:10px 14px;border-radius:10px;margin-top:12px;display:none;font-size:13px;font-weight:600}
+@media(max-width:700px){.grid3{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<nav>
-<div class="logo">pazaryeriOS<span>.io</span></div>
-<div style="display:flex;gap:12px;align-items:center"><span id="shop" style="font-size:13px;font-weight:600"></span><button onclick="localStorage.removeItem('token');location.href='/login.html'" style="background:#fff;color:#111;border:1px solid #eee">Çıkış</button></div>
-</nav>
+<header>
+<div id="shop" style="font-weight:800">Yükleniyor...</div>
+<div style="display:flex;gap:8px"><span id="mpCount" class="badge green">0 bağlı</span><button onclick="localStorage.removeItem('token');location.href='/login.html'" class="ghost" style="padding:6px 12px">Çıkış</button></div>
+</header>
 
 <div class="wrap">
 
-<div class="card">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px"><h2 style="font-size:18px;font-weight:800;letter-spacing:-.5px">Pazaryeri Bağlantılarım</h2><span style="font-size:12px;color:#888">Canlı</span></div>
-<div class="grid3" id="connList"></div>
-<div style="margin-top:18px;border-top:1px solid #f0f0f0;padding-top:18px">
-<div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
-<div style="flex:1;min-width:130px"><label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase">Pazaryeri</label><select id="mp" onchange="toggleSupplier()"><option>Trendyol</option><option>Hepsiburada</option><option>N11</option></select></div>
-<div style="flex:1;min-width:130px"><label id="label-supplier" style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase">Satıcı ID</label><input id="supplierId" placeholder="123456"></div>
-<div style="flex:1;min-width:130px"><label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase">API Key</label><input id="key" placeholder="API Key"></div>
-<div style="flex:1;min-width:130px"><label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase">Secret</label><input id="secret" placeholder="Secret"></div>
-<div><button onclick="connectMp()" style="height:40px;padding:0 22px">Bağla</button></div>
-</div>
-<div id="connMsg" style="margin-top:10px;font-size:13px"></div>
-</div>
-</div>
-
 <div class="grid3">
-<div class="card"><div class="stat-label">Toplam Stok</div><div id="totalStock" class="stat-val">-</div><div style="font-size:12px;color:#00a63d;margin-top:6px">▲ Senkron aktif</div></div>
-<div class="card"><div class="stat-label">Bağlı Pazaryeri</div><div id="totalMp" class="stat-val">-</div><div style="font-size:12px;color:#666;margin-top:6px">30sn'de bağlanır</div></div>
-<div class="card"><div class="stat-label">Sipariş (24s)</div><div id="totalOrder" class="stat-val">-</div><div style="font-size:12px;color:#666;margin-top:6px">Canlı akış</div></div>
+<div class="card"><div style="color:#666;font-size:12px">TOPLAM STOK</div><div id="totalStock" style="font-size:28px;font-weight:900">-</div></div>
+<div class="card"><div style="color:#666;font-size:12px">BAĞLI PAZARYERİ</div><div id="totalMp" style="font-size:28px;font-weight:900">-</div></div>
+<div class="card"><div style="color:#666;font-size:12px">SİPARİŞ</div><div id="totalOrder" style="font-size:28px;font-weight:900">-</div></div>
 </div>
 
 <div class="card">
-<h2 style="font-size:16px;font-weight:700;margin-bottom:14px">Ürünlerim</h2>
+<div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">🛒 Pazaryeri Bağlantılarım</h2><span style="font-size:12px;color:#666">10 pazaryeri destekleniyor</span></div>
+<div class="grid4" id="connList" style="margin-top:16px"></div>
+
+<div style="margin-top:22px;border-top:1px solid #eee;padding-top:18px">
+<h3 style="margin:0 0 8px 0">Yeni Pazaryeri Ekle</h3>
+<div class="formRow">
+<div><label>Pazaryeri</label><select id="mp" onchange="updateForm()"></select></div>
+<div id="field-supplierId"><label>Supplier / Seller ID</label><input id="supplierId" placeholder="123456"></div>
+<div id="field-storeUrl"><label>Mağaza URL (Shopify için)</label><input id="storeUrl" placeholder="magazam.myshopify.com"></div>
+<div id="field-apiKey"><label>API Key</label><input id="key" placeholder="API Key"></div>
+<div id="field-apiSecret"><label>API Secret</label><input id="secret" placeholder="API Secret"></div>
+<div style="flex:0"><button onclick="connectMp()" style="height:42px;padding:0 24px">Bağla →</button></div>
+</div>
+<div id="connMsg"></div>
+<p id="fieldHelp" style="font-size:12px;color:#888;margin-top:8px"></p>
+</div>
+</div>
+
+<div class="card">
+<h2>📦 Ürünlerim</h2>
 <table id="p"><thead><tr><th>Barkod</th><th>Ürün</th><th>Yerler</th><th>Stok</th><th>İşlem</th></tr></thead><tbody></tbody></table>
 </div>
 
 <div class="card">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-<h2 style="font-size:16px;font-weight:700">Siparişler</h2>
-<button onclick="loadRealOrders()" style="background:#fff;color:#111;border:1px solid #eee">Gerçek Trendyol Siparişlerini Çek</button>
-</div>
-<div id="realOrders" style="margin-bottom:12px"></div>
+<h2>📋 Siparişler</h2>
+<button onclick="loadRealOrders()" style="margin-bottom:12px">Gerçek Siparişleri Çek (Trendyol)</button>
+<div id="realOrders"></div>
 <table id="o"><thead><tr><th>Pazaryeri</th><th>Ürün</th><th>Adet</th><th>No</th></tr></thead><tbody></tbody></table>
 </div>
 
 </div>
 
 <script>
-const token=localStorage.getItem('token');if(!token)location.href='/login.html';
-function authFetch(u,o={}){o.headers={...o.headers,Authorization:'Bearer '+token,'Content-Type':'application/json'};return fetch(u,o);}
-function toggleSupplier(){const mp=document.getElementById('mp').value;const el=document.getElementById('supplierId');const label=document.getElementById('label-supplier');if(mp==='Trendyol'){el.style.display='block';label.style.display='block';}else{el.style.display='none';label.style.display='none';}}
-toggleSupplier();
-async function load(){
- const pl=JSON.parse(atob(token.split('.')[1]));document.getElementById('shop').innerText=pl.shopName;
- const conns=await(await authFetch('/api/connections')).json();
- const prods=await(await authFetch('/api/products')).json();
- const ords=await(await authFetch('/api/orders')).json();
- document.getElementById('totalMp').innerText=conns.data.length;
- document.getElementById('totalStock').innerText=prods.data.reduce((a,b)=>a+b.stock,0);
- document.getElementById('totalOrder').innerText=ords.data.length;
- const markets=['Trendyol','Hepsiburada','N11'];
- document.getElementById('connList').innerHTML=markets.map(m=>{
-   const c=conns.data.find(x=>x.marketplace===m);
-   return `<div class="market ${c?'bagli':''}"><b style="font-size:14px">${m}</b><div style="margin:8px 0;font-size:12px;color:#666">${c? 'Bağlı - '+c.connectedAt : 'Bağlı değil'}</div>${c? '<span class="badge">Aktif</span>' : ''}</div>`;
- }).join('');
- document.querySelector('#p tbody').innerHTML=prods.data.map(x=>`<tr><td style="font-family:monospace;font-size:12px">${x.barcode}</td><td style="font-weight:500">${x.title}</td><td style="color:#666;font-size:12px">${x.marketplaces.join(', ')}</td><td style="font-weight:800">${x.stock}</td><td><button onclick="sell('${x.barcode}')" style="background:#fff;color:#111;border:1px solid #eee">Satış Simüle Et</button></td></tr>`).join('');
- document.querySelector('#o tbody').innerHTML=ords.data.map(x=>`<tr><td><span class="badge">${x.marketplace}</span></td><td>${x.product}</td><td>${x.qty}</td><td style="font-family:monospace;font-size:12px">${x.orderNumber}</td></tr>`).join('');
+const token = localStorage.getItem('token');
+if(!token) location.href='/login.html';
+
+function authFetch(url, opts={}){
+  opts.headers = {...opts.headers, Authorization:'Bearer '+token, 'Content-Type':'application/json'};
+  return fetch(url, opts);
 }
-async function connectMp(){
- const marketplace=document.getElementById('mp').value.trim();
- const apiKey=document.getElementById('key').value.trim();
- const apiSecret=document.getElementById('secret').value.trim();
- const supplierId=document.getElementById('supplierId').value.trim();
- const msg=document.getElementById('connMsg');
- if(!apiKey) return alert('API Key gir');
- if(marketplace==='Trendyol' && (!supplierId||!apiSecret)) return alert('Trendyol için SupplierId, Key ve Secret gerekli');
- msg.innerText='Bağlanıyor...';msg.style.color='#666';
- try{
-  const res=await authFetch('/api/connections',{method:'POST',body:JSON.stringify({marketplace,apiKey,apiSecret,supplierId})});
-  const data=await res.json();
-  if(!data.success){msg.innerText='HATA: '+data.error;msg.style.color='red';return;}
-  msg.innerText=data.message||'Bağlandı!';msg.style.color='#00a63d';
-  document.getElementById('key').value='';document.getElementById('secret').value='';document.getElementById('supplierId').value='';
+
+let ALL_MP = [];
+
+async function init(){
+  const res = await fetch('/api/marketplaces');
+  const data = await res.json();
+  ALL_MP = data.data;
+  const sel = document.getElementById('mp');
+  sel.innerHTML = ALL_MP.map(m=>`<option value="${m.name}">${m.icon} ${m.name}</option>`).join('');
+  updateForm();
   load();
- }catch(e){msg.innerText='HATA: '+e.message;msg.style.color='red';}
 }
-async function sell(b){await authFetch('/api/orders/mock-sell',{method:'POST',body:JSON.stringify({barcode:b})});load();}
+
+function updateForm(){
+  const name = document.getElementById('mp').value;
+  const mp = ALL_MP.find(x=>x.name===name);
+  if(!mp) return;
+  document.getElementById('fieldHelp').innerText = 'Gerekli: ' + mp.desc;
+  // Show/hide fields
+  const has = (f)=> mp.fields.includes(f);
+  document.getElementById('field-supplierId').style.display = (has('supplierId')||has('sellerId'))?'block':'none';
+  document.getElementById('field-storeUrl').style.display = has('storeUrl')?'block':'none';
+  document.getElementById('field-apiKey').style.display = has('apiKey')?'block':'none';
+  document.getElementById('field-apiSecret').style.display = has('apiSecret')?'block':'none';
+}
+
+async function load(){
+  const payload = JSON.parse(atob(token.split('.')[1]));
+  document.getElementById('shop').innerText = payload.shopName + ' Panel';
+  const conns = await (await authFetch('/api/connections')).json();
+  const prods = await (await authFetch('/api/products')).json();
+  const ords = await (await authFetch('/api/orders')).json();
+
+  document.getElementById('totalMp').innerText = conns.data.length;
+  document.getElementById('totalStock').innerText = prods.data.reduce((a,b)=>a+b.stock,0);
+  document.getElementById('totalOrder').innerText = ords.data.length;
+  document.getElementById('mpCount').innerText = conns.data.length + ' bağlı';
+
+  document.getElementById('connList').innerHTML = ALL_MP.map(m=>{
+    const c = conns.data.find(x=>x.marketplace===m.name);
+    return `<div class="market ${c?'bagli':''}">
+      <div style="display:flex;justify-content:space-between"><b>${m.icon} ${m.name}</b>${c?'<span class="badge green">Aktif</span>':'<span class="badge gray">Bağlı değil</span>'}</div>
+      <div style="margin:8px 0;font-size:12px;color:#666">${c? 'Bağlı - '+c.connectedAt : m.desc}</div>
+      ${c?`<button class="danger" style="padding:6px 10px;font-size:12px" onclick="disconnectMp('${m.name}')">Bağlantıyı Kes</button>`:''}
+    </div>`;
+  }).join('');
+
+  document.querySelector('#p tbody').innerHTML = prods.data.map(x=>`<tr><td>${x.barcode}</td><td>${x.title}</td><td>${x.marketplaces.join(', ')}</td><td style="font-weight:800">${x.stock}</td><td><button onclick="sell('${x.barcode}')">Satış Simule Et</button></td></tr>`).join('');
+  document.querySelector('#o tbody').innerHTML = ords.data.map(x=>`<tr><td><span class="badge">${x.marketplace}</span></td><td>${x.product}</td><td>${x.qty}</td><td>${x.orderNumber}</td></tr>`).join('');
+}
+
+async function connectMp(){
+  const marketplace = document.getElementById('mp').value.trim();
+  const apiKey = document.getElementById('key').value.trim();
+  const apiSecret = document.getElementById('secret').value.trim();
+  const supplierId = document.getElementById('supplierId').value.trim();
+  const storeUrl = document.getElementById('storeUrl').value.trim();
+  const msg = document.getElementById('connMsg');
+  if(!apiKey && marketplace!=='ÇiçekSepeti') { alert('API Key gir'); return; }
+  msg.style.display='block'; msg.innerText='Bağlanıyor...'; msg.style.background='#f3f4f6'; msg.style.color='#111';
+  try{
+    const res = await authFetch('/api/connections',{method:'POST',body:JSON.stringify({marketplace, apiKey, apiSecret, supplierId, storeUrl})});
+    const data = await res.json();
+    if(!data.success){ msg.innerText='HATA: '+data.error; msg.style.background='#fee2e2'; msg.style.color='#991b1b'; return; }
+    msg.innerText = data.message; msg.style.background='#dcfce7'; msg.style.color='#166534';
+    document.getElementById('key').value=''; document.getElementById('secret').value=''; document.getElementById('supplierId').value=''; document.getElementById('storeUrl').value='';
+    load();
+  }catch(e){ msg.innerText='HATA: '+e.message; msg.style.background='#fee2e2'; }
+}
+
+async function disconnectMp(name){
+  if(!confirm(name + ' bağlantısını kesmek istiyor musun?')) return;
+  await authFetch('/api/connections/'+encodeURIComponent(name),{method:'DELETE'});
+  load();
+}
+async function sell(barcode){ await authFetch('/api/orders/mock-sell',{method:'POST',body:JSON.stringify({barcode})}); load(); }
 async function loadRealOrders(){
- const div=document.getElementById('realOrders');div.innerHTML='<span style="font-size:13px;color:#888">Gerçek siparişler çekiliyor...</span>';
- try{
-  const res=await authFetch('/api/trendyol/orders');
-  const data=await res.json();
-  if(!data.success){div.innerHTML='<span style="color:red;font-size:13px">Hata: '+(data.error||'Bilinmeyen')+'</span>';return;}
-  if(!data.data||data.data.length===0){div.innerHTML='<span style="font-size:13px;color:#888">Sipariş yok veya test mağazası.</span>';return;}
-  div.innerHTML=`<div style="background:#f9f9f9;padding:12px;border-radius:10px"><b style="font-size:13px">${data.count} sipariş bulundu (son 20)</b><pre style="white-space:pre-wrap;font-size:11px;max-height:200px;overflow:auto;margin-top:8px">${JSON.stringify(data.data.slice(0,2),null,2)}</pre></div>`;
- }catch(e){div.innerHTML='Hata: '+e.message;}
+  const div = document.getElementById('realOrders');
+  div.innerHTML = 'Gerçek siparişler çekiliyor...';
+  try{
+    const res = await authFetch('/api/trendyol/orders');
+    const data = await res.json();
+    if(!data.success){ div.innerHTML = 'Hata: ' + (data.error||'Bilinmeyen'); return; }
+    div.innerHTML = `<div style="background:#f9f9f9;padding:12px;border-radius:8px;margin-bottom:10px"><b>${data.count} sipariş</b><pre style="white-space:pre-wrap;font-size:11px;max-height:200px;overflow:auto">${JSON.stringify(data.data.slice(0,2),null,2)}</pre></div>`;
+  }catch(e){ div.innerHTML = 'Hata: '+e.message; }
 }
-load();
+
+init();
 </script>
 </body>
 </html>
