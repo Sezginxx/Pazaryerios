@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard - PazaryeriOS</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Inter',sans-serif;background:#f8f8f8;color:#111}
+nav{height:60px;background:#fff;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:10}
+.logo{font-weight:900;font-size:18px}.logo span{font-weight:400;color:#888}
+.wrap{max-width:1100px;margin:0 auto;padding:28px 24px;display:grid;gap:20px}
+.card{background:#fff;border:1px solid #eee;border-radius:16px;padding:22px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.market{border:1px solid #eee;border-radius:12px;padding:16px;transition:.2s}.bagli{border-color:#111;background:#f9f9f9}
+input,select{width:100%;padding:10px 12px;border:1px solid #e5e5e5;border-radius:10px;font-size:14px;box-sizing:border-box}
+input:focus,select:focus{outline:none;border-color:#111}
+button{padding:10px 16px;background:#111;color:#fff;border:none;border-radius:100px;font-weight:600;cursor:pointer;font-size:13px;transition:.15s}button:hover{background:#222}
+.badge{padding:4px 10px;background:#111;color:#fff;border-radius:100px;font-size:11px;font-weight:600}
+table{width:100%;border-collapse:collapse}th{font-size:12px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:12px;text-align:left;border-bottom:1px solid #eee}td{padding:12px;border-bottom:1px solid #f5f5f5;font-size:14px}
+.stat-val{font-size:28px;font-weight:800;letter-spacing:-1px}.stat-label{font-size:12px;color:#888;font-weight:500;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+@media(max-width:800px){.grid3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<nav>
+<div class="logo">pazaryeriOS<span>.io</span></div>
+<div style="display:flex;gap:12px;align-items:center"><span id="shop" style="font-size:13px;font-weight:600"></span><button onclick="localStorage.removeItem('token');location.href='/login.html'" style="background:#fff;color:#111;border:1px solid #eee">Çıkış</button></div>
+</nav>
+
+<div class="wrap">
+
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px"><h2 style="font-size:18px;font-weight:800;letter-spacing:-.5px">Pazaryeri Bağlantılarım</h2><span style="font-size:12px;color:#888">Canlı</span></div>
+<div class="grid3" id="connList"></div>
+<div style="margin-top:18px;border-top:1px solid #f0f0f0;padding-top:18px">
+<div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+<div style="flex:1;min-width:130px"><label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase">Pazaryeri</label><select id="mp" onchange="toggleSupplier()"><option>Trendyol</option><option>Hepsiburada</option><option>N11</option></select></div>
+<div style="flex:1;min-width:130px"><label id="label-supplier" style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase">Satıcı ID</label><input id="supplierId" placeholder="123456"></div>
+<div style="flex:1;min-width:130px"><label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase">API Key</label><input id="key" placeholder="API Key"></div>
+<div style="flex:1;min-width:130px"><label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase">Secret</label><input id="secret" placeholder="Secret"></div>
+<div><button onclick="connectMp()" style="height:40px;padding:0 22px">Bağla</button></div>
+</div>
+<div id="connMsg" style="margin-top:10px;font-size:13px"></div>
+</div>
+</div>
+
+<div class="grid3">
+<div class="card"><div class="stat-label">Toplam Stok</div><div id="totalStock" class="stat-val">-</div><div style="font-size:12px;color:#00a63d;margin-top:6px">▲ Senkron aktif</div></div>
+<div class="card"><div class="stat-label">Bağlı Pazaryeri</div><div id="totalMp" class="stat-val">-</div><div style="font-size:12px;color:#666;margin-top:6px">30sn'de bağlanır</div></div>
+<div class="card"><div class="stat-label">Sipariş (24s)</div><div id="totalOrder" class="stat-val">-</div><div style="font-size:12px;color:#666;margin-top:6px">Canlı akış</div></div>
+</div>
+
+<div class="card">
+<h2 style="font-size:16px;font-weight:700;margin-bottom:14px">Ürünlerim</h2>
+<table id="p"><thead><tr><th>Barkod</th><th>Ürün</th><th>Yerler</th><th>Stok</th><th>İşlem</th></tr></thead><tbody></tbody></table>
+</div>
+
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+<h2 style="font-size:16px;font-weight:700">Siparişler</h2>
+<button onclick="loadRealOrders()" style="background:#fff;color:#111;border:1px solid #eee">Gerçek Trendyol Siparişlerini Çek</button>
+</div>
+<div id="realOrders" style="margin-bottom:12px"></div>
+<table id="o"><thead><tr><th>Pazaryeri</th><th>Ürün</th><th>Adet</th><th>No</th></tr></thead><tbody></tbody></table>
+</div>
+
+</div>
+
+<script>
+const token=localStorage.getItem('token');if(!token)location.href='/login.html';
+function authFetch(u,o={}){o.headers={...o.headers,Authorization:'Bearer '+token,'Content-Type':'application/json'};return fetch(u,o);}
+function toggleSupplier(){const mp=document.getElementById('mp').value;const el=document.getElementById('supplierId');const label=document.getElementById('label-supplier');if(mp==='Trendyol'){el.style.display='block';label.style.display='block';}else{el.style.display='none';label.style.display='none';}}
+toggleSupplier();
+async function load(){
+ const pl=JSON.parse(atob(token.split('.')[1]));document.getElementById('shop').innerText=pl.shopName;
+ const conns=await(await authFetch('/api/connections')).json();
+ const prods=await(await authFetch('/api/products')).json();
+ const ords=await(await authFetch('/api/orders')).json();
+ document.getElementById('totalMp').innerText=conns.data.length;
+ document.getElementById('totalStock').innerText=prods.data.reduce((a,b)=>a+b.stock,0);
+ document.getElementById('totalOrder').innerText=ords.data.length;
+ const markets=['Trendyol','Hepsiburada','N11'];
+ document.getElementById('connList').innerHTML=markets.map(m=>{
+   const c=conns.data.find(x=>x.marketplace===m);
+   return `<div class="market ${c?'bagli':''}"><b style="font-size:14px">${m}</b><div style="margin:8px 0;font-size:12px;color:#666">${c? 'Bağlı - '+c.connectedAt : 'Bağlı değil'}</div>${c? '<span class="badge">Aktif</span>' : ''}</div>`;
+ }).join('');
+ document.querySelector('#p tbody').innerHTML=prods.data.map(x=>`<tr><td style="font-family:monospace;font-size:12px">${x.barcode}</td><td style="font-weight:500">${x.title}</td><td style="color:#666;font-size:12px">${x.marketplaces.join(', ')}</td><td style="font-weight:800">${x.stock}</td><td><button onclick="sell('${x.barcode}')" style="background:#fff;color:#111;border:1px solid #eee">Satış Simüle Et</button></td></tr>`).join('');
+ document.querySelector('#o tbody').innerHTML=ords.data.map(x=>`<tr><td><span class="badge">${x.marketplace}</span></td><td>${x.product}</td><td>${x.qty}</td><td style="font-family:monospace;font-size:12px">${x.orderNumber}</td></tr>`).join('');
+}
+async function connectMp(){
+ const marketplace=document.getElementById('mp').value.trim();
+ const apiKey=document.getElementById('key').value.trim();
+ const apiSecret=document.getElementById('secret').value.trim();
+ const supplierId=document.getElementById('supplierId').value.trim();
+ const msg=document.getElementById('connMsg');
+ if(!apiKey) return alert('API Key gir');
+ if(marketplace==='Trendyol' && (!supplierId||!apiSecret)) return alert('Trendyol için SupplierId, Key ve Secret gerekli');
+ msg.innerText='Bağlanıyor...';msg.style.color='#666';
+ try{
+  const res=await authFetch('/api/connections',{method:'POST',body:JSON.stringify({marketplace,apiKey,apiSecret,supplierId})});
+  const data=await res.json();
+  if(!data.success){msg.innerText='HATA: '+data.error;msg.style.color='red';return;}
+  msg.innerText=data.message||'Bağlandı!';msg.style.color='#00a63d';
+  document.getElementById('key').value='';document.getElementById('secret').value='';document.getElementById('supplierId').value='';
+  load();
+ }catch(e){msg.innerText='HATA: '+e.message;msg.style.color='red';}
+}
+async function sell(b){await authFetch('/api/orders/mock-sell',{method:'POST',body:JSON.stringify({barcode:b})});load();}
+async function loadRealOrders(){
+ const div=document.getElementById('realOrders');div.innerHTML='<span style="font-size:13px;color:#888">Gerçek siparişler çekiliyor...</span>';
+ try{
+  const res=await authFetch('/api/trendyol/orders');
+  const data=await res.json();
+  if(!data.success){div.innerHTML='<span style="color:red;font-size:13px">Hata: '+(data.error||'Bilinmeyen')+'</span>';return;}
+  if(!data.data||data.data.length===0){div.innerHTML='<span style="font-size:13px;color:#888">Sipariş yok veya test mağazası.</span>';return;}
+  div.innerHTML=`<div style="background:#f9f9f9;padding:12px;border-radius:10px"><b style="font-size:13px">${data.count} sipariş bulundu (son 20)</b><pre style="white-space:pre-wrap;font-size:11px;max-height:200px;overflow:auto;margin-top:8px">${JSON.stringify(data.data.slice(0,2),null,2)}</pre></div>`;
+ }catch(e){div.innerHTML='Hata: '+e.message;}
+}
+load();
+</script>
+</body>
+</html>
