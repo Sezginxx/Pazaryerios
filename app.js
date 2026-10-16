@@ -16,7 +16,6 @@ let products = [
 ];
 let orders = [{ id: 1001, marketplace: 'Trendyol', orderNumber: 'TR-123', barcode: '86800001', product: 'Siyah T-Shirt', qty: 1 }];
 
-// TÜM PAZARYERLERİ LİSTESİ
 const ALL_MARKETPLACES = [
   { id: 'trendyol', name: 'Trendyol', icon: '🟧', fields: ['supplierId','apiKey','apiSecret'], desc: 'SupplierId, API Key, Secret' },
   { id: 'hepsiburada', name: 'Hepsiburada', icon: '🟦', fields: ['apiKey','apiSecret'], desc: 'API Key, Secret' },
@@ -32,16 +31,84 @@ const ALL_MARKETPLACES = [
 
 let connections = {};
 
+// ===== ADMIN & SITE CONFIG =====
+let siteConfig = {
+  heroTitle: "1 ürün sat. 10 pazaryerinde stok düşsün.",
+  heroSubtitle: "Trendyol, Hepsiburada, N11, Amazon, Etsy, Shopify, ÇiçekSepeti, Pazarama, PTT AVM, İdefix tek panel.",
+  pricing: [
+    { name: "Starter", price: 199, period: "ay", features: ["3 Pazaryeri", "500 Ürün", "Stok Senkron", "Email Destek"], popular: false },
+    { name: "Growth", price: 399, period: "ay", features: ["7 Pazaryeri", "5.000 Ürün", "Anlık Senkron", "Sipariş Yönetimi", "Öncelikli Destek"], popular: true },
+    { name: "Scale", price: 799, period: "ay", features: ["10 Pazaryeri", "Sınırsız Ürün", "API Erişimi", "Özel Entegrasyon", "7/24 Destek"], popular: false }
+  ],
+  announcement: "🎉 Yeni: Amazon ve Etsy entegrasyonu aktif!",
+  contactEmail: "destek@pazaryerios.com",
+  contactPhone: "+90 5xx xxx xx xx"
+};
+
+const ADMIN_CREDENTIALS = { email: "admin@pazaryerios.com", password: "admin123" };
+
 function auth(req,res,next){
   const t=req.headers.authorization?.split(' ')[1];
   if(!t) return res.status(401).json({error:'Giris yok'});
   try{ req.user=jwt.verify(t,JWT_SECRET); next(); }catch{ res.status(401).json({error:'Token hatali'}) }
 }
+function adminAuth(req,res,next){
+  const t=req.headers.authorization?.split(' ')[1];
+  if(!t) return res.status(401).json({error:'Admin girisi yok'});
+  try{ 
+    const decoded = jwt.verify(t,JWT_SECRET);
+    if(!decoded.isAdmin) return res.status(403).json({error:'Yetki yok'});
+    req.admin=decoded; next(); 
+  }catch{ res.status(401).json({error:'Token hatali'}) }
+}
 
-app.get('/api/marketplaces', (req,res)=>{
-  res.json({success:true,data:ALL_MARKETPLACES});
+// PUBLIC CONFIG - Herkes görebilir (anasayfa için)
+app.get('/api/config', (req,res)=>{
+  res.json({success:true, data: siteConfig});
 });
 
+// ADMIN LOGIN
+app.post('/api/admin/login', async (req,res)=>{
+  const {email,password}=req.body;
+  if(email===ADMIN_CREDENTIALS.email && password===ADMIN_CREDENTIALS.password){
+    const token=jwt.sign({email, isAdmin:true}, JWT_SECRET, {expiresIn:'24h'});
+    return res.json({success:true, token});
+  }
+  res.status(401).json({error:'Admin bilgileri hatalı'});
+});
+
+// ADMIN - CONFIG GET
+app.get('/api/admin/config', adminAuth, (req,res)=>{
+  res.json({success:true, data: siteConfig});
+});
+
+// ADMIN - CONFIG UPDATE
+app.post('/api/admin/config', adminAuth, (req,res)=>{
+  const {heroTitle, heroSubtitle, pricing, announcement, contactEmail, contactPhone} = req.body;
+  if(heroTitle) siteConfig.heroTitle = heroTitle;
+  if(heroSubtitle) siteConfig.heroSubtitle = heroSubtitle;
+  if(pricing) siteConfig.pricing = pricing;
+  if(announcement!==undefined) siteConfig.announcement = announcement;
+  if(contactEmail) siteConfig.contactEmail = contactEmail;
+  if(contactPhone) siteConfig.contactPhone = contactPhone;
+  res.json({success:true, message:'Ayarlar kaydedildi', data: siteConfig});
+});
+
+// ADMIN - STATS
+app.get('/api/admin/stats', adminAuth, (req,res)=>{
+  res.json({
+    success:true,
+    data:{
+      totalUsers: users.length,
+      totalConnections: Object.values(connections).flat().length,
+      totalProducts: products.length,
+      totalOrders: orders.length,
+      users: users.map(u=>({email:u.email, shopName:u.shopName, id:u.id}))
+    }
+  });
+});
+
+app.get('/api/marketplaces', (req,res)=> res.json({success:true,data:ALL_MARKETPLACES}));
 app.post('/api/register', async (req,res)=>{
   const {email,password,shopName}=req.body;
   if(users.find(u=>u.email===email)) return res.status(400).json({error:'Email var'});
@@ -51,7 +118,6 @@ app.post('/api/register', async (req,res)=>{
   const token=jwt.sign({id:u.id,email,shopName},JWT_SECRET);
   res.json({success:true,token})
 });
-
 app.post('/api/login', async (req,res)=>{
   const {email,password}=req.body;
   const u=users.find(x=>x.email===email);
@@ -61,30 +127,18 @@ app.post('/api/login', async (req,res)=>{
   const token=jwt.sign({id:u.id,email:u.email,shopName:u.shopName},JWT_SECRET);
   res.json({success:true,token})
 });
-
-app.get('/api/connections',auth,(req,res)=>{
-  res.json({success:true,data:connections[req.user.id]||[]})
-});
-
+app.get('/api/connections',auth,(req,res)=> res.json({success:true,data:connections[req.user.id]||[]}));
 app.post('/api/connections',auth,(req,res)=>{
   const {marketplace,apiKey,apiSecret,supplierId,storeUrl,sellerId} = req.body;
   if(!connections[req.user.id]) connections[req.user.id]=[];
-  // Aynı pazaryeri varsa güncelle
   connections[req.user.id] = connections[req.user.id].filter(c=>c.marketplace!==marketplace);
-  connections[req.user.id].push({
-    marketplace, apiKey, apiSecret, supplierId, storeUrl, sellerId,
-    status:'Bagli', connectedAt: new Date().toLocaleString('tr-TR')
-  });
+  connections[req.user.id].push({ marketplace, apiKey, apiSecret, supplierId, storeUrl, sellerId, status:'Bagli', connectedAt: new Date().toLocaleString('tr-TR') });
   res.json({success:true, message: marketplace + ' başarıyla bağlandı!'})
 });
-
 app.delete('/api/connections/:marketplace',auth,(req,res)=>{
-  if(connections[req.user.id]){
-    connections[req.user.id] = connections[req.user.id].filter(c=>c.marketplace!==req.params.marketplace);
-  }
+  if(connections[req.user.id]) connections[req.user.id] = connections[req.user.id].filter(c=>c.marketplace!==req.params.marketplace);
   res.json({success:true})
 });
-
 app.get('/api/products',auth,(req,res)=>res.json({success:true,data:products}));
 app.get('/api/orders',auth,(req,res)=>res.json({success:true,data:orders}));
 app.post('/api/orders/mock-sell',auth,(req,res)=>{
@@ -92,33 +146,14 @@ app.post('/api/orders/mock-sell',auth,(req,res)=>{
   if(p) p.stock--;
   res.json({success:true})
 });
-
-// GERÇEK TRENDYOL SİPARİŞLERİ - DÜZGÜN HATA MESAJI
 app.get('/api/trendyol/orders',auth,async (req,res)=>{
   const userConns = connections[req.user.id] || [];
   const trendyolConn = userConns.find(c=>c.marketplace==='Trendyol');
-  if(!trendyolConn){
-    return res.json({success:false, error:'Önce Trendyol bağlantısı eklemelisin. Panelden SupplierId, API Key ve Secret ile bağla.'});
-  }
-  // Burada gerçek Trendyol API çağrısı olacak
-  // Şimdilik demo - çünkü gerçek API anahtarları olmadan Trendyol izin vermiyor
-  // Kullanıcı bağlayınca burası çalışacak
-  try{
-    // Örnek: Gerçek API çağrısı (şu an simüle)
-    // const response = await fetch(`https://api.trendyol.com/sapigw/suppliers/${trendyolConn.supplierId}/orders` ...)
-    // Simülasyon:
-    return res.json({
-      success:true, 
-      count: 2, 
-      message: 'Bağlantı aktif ama Trendyol test mağazasında sipariş yok. Gerçek mağazada siparişler burada listelenecek.',
-      data: [
-        { orderNumber: 'TR-DEMO-001', customer: 'Test Müşteri', product: 'Siyah T-Shirt', qty: 1, status: 'Created' },
-        { orderNumber: 'TR-DEMO-002', customer: 'Ayşe Yılmaz', product: 'Beyaz Sneaker', qty: 2, status: 'Picking' }
-      ]
-    });
-  }catch(e){
-    return res.json({success:false, error:'Trendyol API hatası: ' + e.message + '. API bilgilerini kontrol et.'});
-  }
+  if(!trendyolConn) return res.json({success:false, error:'Önce Trendyol bağlantısı eklemelisin.'});
+  return res.json({ success:true, count: 2, message: 'Demo siparişler', data: [
+    { orderNumber: 'TR-DEMO-001', customer: 'Test Müşteri', product: 'Siyah T-Shirt', qty: 1, status: 'Created' },
+    { orderNumber: 'TR-DEMO-002', customer: 'Ayşe Yılmaz', product: 'Beyaz Sneaker', qty: 2, status: 'Picking' }
+  ]});
 });
 
 const PORT = process.env.PORT || 3000;
