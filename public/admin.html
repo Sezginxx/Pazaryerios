@@ -2,189 +2,158 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin - PazaryeriOS</title>
+<title>Admin - Trial Sistemi</title>
 <style>
 *{box-sizing:border-box}body{font-family:Inter,sans-serif;background:#f6f7f9;margin:0}
 header{background:#111;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
-.wrap{max-width:1100px;margin:0 auto;padding:24px;display:grid;gap:20px}
-.card{background:#fff;border:1px solid #eee;border-radius:16px;padding:22px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
-.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
-.stat{font-size:28px;font-weight:900}
-label{font-size:12px;font-weight:700;color:#666;display:block;margin:12px 0 6px;text-transform:uppercase}
-input,textarea{width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px}
-textarea{min-height:80px;resize:vertical}
-button{padding:10px 18px;background:#111;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer}
-button.green{background:#16a34a}button.ghost{background:#fff;color:#111;border:1px solid #ddd}
-.pricing-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-.price-card{border:1.5px solid #eee;border-radius:12px;padding:16px}
-@media(max-width:800px){.grid3,.pricing-grid{grid-template-columns:1fr}}
+.wrap{max-width:1200px;margin:0 auto;padding:20px;display:grid;gap:16px}
+.card{background:#fff;border:1px solid #eee;border-radius:16px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.stat{font-size:26px;font-weight:900}
+label{font-size:11px;font-weight:700;color:#666;display:block;margin:10px 0 4px;text-transform:uppercase}
+input,textarea,select{width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px}
+button{padding:8px 14px;background:#111;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:12px}
+button.green{background:#16a34a}button.red{background:#ef4444}button.ghost{background:#fff;color:#111;border:1px solid #ddd}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px;border-bottom:1px solid #f0f0f0;text-align:left}
+.badge{padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700}.badge-green{background:#dcfce7;color:#166534}.badge-red{background:#fee2e2;color:#991b1b}.badge-yellow{background:#fef9c3;color:#854d0e}
+@media(max-width:800px){.grid4{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
-<header>
-<div style="font-weight:900">pazaryeriOS ADMIN</div>
-<div style="display:flex;gap:10px;align-items:center"><span id="adminEmail" style="font-size:12px;color:#888"></span><button class="ghost" onclick="logout()" style="background:#222;color:#fff;border:none">Çıkış</button></div>
-</header>
+<header><div style="font-weight:900">pazaryeriOS ADMIN - TRIAL</div><div style="display:flex;gap:8px"><button onclick="checkTrials()" class="ghost" style="background:#222;color:#fff;border:none">Cron Çalıştır</button><button onclick="logout()" class="ghost" style="background:#222;color:#fff;border:none">Çıkış</button></div></header>
 
 <div id="loginBox" class="wrap" style="max-width:400px;margin-top:60px">
-<div class="card">
-<h2>Admin Girişi</h2>
-<p style="color:#666;font-size:13px">Sadece yönetici girebilir</p>
-<label>Email</label><input id="email" value="admin@pazaryerios.com">
-<label>Şifre</label><input id="pass" type="password" value="admin123">
-<button onclick="adminLogin()" style="width:100%;margin-top:16px">Giriş Yap</button>
-<div id="loginMsg" style="margin-top:10px;font-size:13px;color:red"></div>
-<p style="font-size:11px;color:#888;margin-top:12px">Varsayılan: admin@pazaryerios.com / admin123<br>app.js içinden değiştirebilirsin</p>
-</div>
+<div class="card"><h3>Admin Girişi</h3><label>Email</label><input id="email" value="admin@pazaryerios.com"><label>Şifre</label><input id="pass" type="password" value="admin123"><button onclick="adminLogin()" style="width:100%;margin-top:12px">Giriş</button><div id="loginMsg" style="color:red;font-size:12px;margin-top:8px"></div></div>
 </div>
 
 <div id="adminBox" class="wrap" style="display:none">
 
-<div class="grid3">
-<div class="card"><div style="font-size:12px;color:#888">TOPLAM KULLANICI</div><div class="stat" id="statUsers">-</div></div>
-<div class="card"><div style="font-size:12px;color:#888">TOPLAM BAĞLANTI</div><div class="stat" id="statConn">-</div></div>
-<div class="card"><div style="font-size:12px;color:#888">TOPLAM ÜRÜN</div><div class="stat" id="statProd">-</div></div>
+<div class="grid4">
+<div class="card"><div style="font-size:11px;color:#888">KULLANICI</div><div class="stat" id="sUsers">-</div></div>
+<div class="card"><div style="font-size:11px;color:#888">AKTİF DENEME</div><div class="stat" id="sActive" style="color:#16a34a">-</div></div>
+<div class="card"><div style="font-size:11px;color:#888">SÜRESİ BİTEN</div><div class="stat" id="sExpired" style="color:#ef4444">-</div></div>
+<div class="card"><div style="font-size:11px;color:#888">GÖNDERİLEN MAİL</div><div class="stat" id="sMails">-</div></div>
 </div>
 
 <div class="card">
-<h2>📢 Duyuru & Anasayfa Ayarları</h2>
-<label>Üst Duyuru Bandı</label><input id="announcement" placeholder="🎉 Yeni: Amazon ve Etsy entegrasyonu aktif!">
-<label>Ana Başlık (Hero Title)</label><textarea id="heroTitle"></textarea>
-<label>Alt Açıklama (Hero Subtitle)</label><textarea id="heroSubtitle"></textarea>
-<label>İletişim Email</label><input id="contactEmail">
-<label>İletişim Telefon</label><input id="contactPhone">
-<button class="green" onclick="saveGeneral()" style="margin-top:14px">Genel Ayarları Kaydet →</button>
-<span id="generalMsg" style="margin-left:10px;font-size:13px"></span>
+<h3>⚙️ Genel Ayarlar</h3>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+<div><label>Deneme Süresi (Gün)</label><input id="trialDays" type="number"></div>
+<div><label>Duyuru Bandı</label><input id="announcement"></div>
+</div>
+<label>Hero Başlık</label><textarea id="heroTitle"></textarea>
+<label>Hero Açıklama</label><textarea id="heroSubtitle"></textarea>
+<button class="green" onclick="saveGeneral()">Kaydet</button> <span id="gMsg"></span>
 </div>
 
 <div class="card">
-<h2>💰 Fiyatlandırma (Pricing)</h2>
-<div id="pricingList" class="pricing-grid"></div>
-<button onclick="addPlan()" style="margin-top:12px" class="ghost">+ Yeni Plan Ekle</button>
-<button class="green" onclick="savePricing()" style="margin-top:12px">Fiyatları Kaydet →</button>
-<span id="pricingMsg" style="margin-left:10px;font-size:13px"></span>
+<h3>💰 Fiyatlar</h3>
+<div id="pricingList" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px"></div>
+<button onclick="addPlan()" class="ghost" style="margin-top:10px">+ Plan Ekle</button>
+<button class="green" onclick="savePricing()" style="margin-top:10px">Fiyatları Kaydet</button> <span id="pMsg"></span>
 </div>
 
 <div class="card">
-<h2>👥 Kullanıcılar</h2>
-<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid #eee">Mağaza</th><th style="text-align:left;padding:8px;border-bottom:1px solid #eee">Email</th></tr></thead><tbody id="userTable"></tbody></table>
+<h3>👥 Mağazalar & Deneme Takibi</h3>
+<table><thead><tr><th>Mağaza</th><th>Email</th><th>Kayıt</th><th>Bitiş</th><th>Kalan</th><th>Durum</th><th>İşlem</th></tr></thead><tbody id="userTable"></tbody></table>
+</div>
+
+<div class="card">
+<h3>📧 Son Gönderilen Mailler (Log)</h3>
+<div id="mailLogs" style="font-size:11px;max-height:200px;overflow:auto;background:#f9fafb;padding:10px;border-radius:8px"></div>
 </div>
 
 </div>
 
 <script>
-let token = localStorage.getItem('admin_token');
-let currentConfig = null;
-
+let token=localStorage.getItem('admin_token');
+let cfg=null;
 function checkAuth(){
-  if(token){
-    try{
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      if(payload.isAdmin){ showAdmin(); return; }
-    }catch{}
-  }
+  if(token){ try{ const p=JSON.parse(atob(token.split('.')[1])); if(p.isAdmin){ showAdmin(); return; } }catch{} }
   document.getElementById('loginBox').style.display='block';
-  document.getElementById('adminBox').style.display='none';
 }
-
 async function adminLogin(){
-  const email=document.getElementById('email').value.trim();
-  const password=document.getElementById('pass').value.trim();
-  const msg=document.getElementById('loginMsg');
-  msg.innerText='Giriş yapılıyor...';
-  try{
-    const res=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
-    const data=await res.json();
-    if(!data.success){ msg.innerText=data.error; return; }
-    localStorage.setItem('admin_token', data.token);
-    token=data.token;
-    showAdmin();
-  }catch(e){ msg.innerText=e.message; }
+  const email=document.getElementById('email').value, password=document.getElementById('pass').value;
+  const res=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+  const data=await res.json();
+  if(!data.success){ document.getElementById('loginMsg').innerText=data.error; return; }
+  localStorage.setItem('admin_token',data.token); token=data.token; showAdmin();
 }
-
 async function showAdmin(){
   document.getElementById('loginBox').style.display='none';
   document.getElementById('adminBox').style.display='grid';
-  const payload = JSON.parse(atob(token.split('.')[1]));
-  document.getElementById('adminEmail').innerText = payload.email;
-  await loadConfig();
-  await loadStats();
+  await loadAll();
 }
-
-async function loadConfig(){
+async function loadAll(){
   const res=await fetch('/api/admin/config',{headers:{Authorization:'Bearer '+token}});
-  const data=await res.json();
-  currentConfig=data.data;
-  document.getElementById('announcement').value=currentConfig.announcement||'';
-  document.getElementById('heroTitle').value=currentConfig.heroTitle||'';
-  document.getElementById('heroSubtitle').value=currentConfig.heroSubtitle||'';
-  document.getElementById('contactEmail').value=currentConfig.contactEmail||'';
-  document.getElementById('contactPhone').value=currentConfig.contactPhone||'';
+  const j=await res.json(); cfg=j.data;
+  document.getElementById('trialDays').value=cfg.trialDays;
+  document.getElementById('announcement').value=cfg.announcement;
+  document.getElementById('heroTitle').value=cfg.heroTitle;
+  document.getElementById('heroSubtitle').value=cfg.heroSubtitle;
   renderPricing();
+  const sRes=await fetch('/api/admin/stats',{headers:{Authorization:'Bearer '+token}});
+  const sJ=await sRes.json();
+  const d=sJ.data;
+  document.getElementById('sUsers').innerText=d.totalUsers;
+  document.getElementById('sActive').innerText=d.users.filter(u=>u.trialInfo.isActive).length;
+  document.getElementById('sExpired').innerText=d.users.filter(u=>u.trialInfo.isExpired).length;
+  document.getElementById('sMails').innerText=d.emailLogs.length;
+  document.getElementById('userTable').innerHTML=d.users.map(u=>{
+    const ti=u.trialInfo;
+    const badge = ti.isExpired? '<span class="badge badge-red">SÜRESİ BİTTİ</span>' : ti.diffDays<=3? '<span class="badge badge-yellow">'+ti.diffDays+' gün kaldı</span>' : '<span class="badge badge-green">'+ti.diffDays+' gün</span>';
+    return `<tr>
+      <td><b>${u.shopName}</b><br><span style="color:#888">${u.isActive===false? '❌ Kapalı': '✅ Açık'}</span></td>
+      <td>${u.email}</td>
+      <td>${new Date(u.createdAt).toLocaleDateString('tr-TR')}</td>
+      <td>${new Date(u.trialEndsAt).toLocaleDateString('tr-TR')}</td>
+      <td>${badge}</td>
+      <td>${ti.isExpired? 'Expired': 'Active'}</td>
+      <td>
+        <button onclick="extendUser(${u.id},7)">+7 Gün</button>
+        <button onclick="extendUser(${u.id},30)" class="green">+30 Gün</button>
+        <button onclick="toggleUser(${u.id})" class="ghost">${u.isActive===false?'Aç':'Kapat'}</button>
+      </td>
+    </tr>`;
+  }).join('');
+  document.getElementById('mailLogs').innerHTML=d.emailLogs.map(m=>`<div style="border-bottom:1px solid #eee;padding:6px 0"><b>${m.at}</b> → ${m.to} | ${m.subject}</div>`).join('') || 'Henüz mail yok';
 }
-
 function renderPricing(){
-  const container=document.getElementById('pricingList');
-  container.innerHTML=currentConfig.pricing.map((p,i)=>`
-    <div class="price-card">
-      <label>Plan Adı</label><input value="${p.name}" onchange="updatePrice(${i},'name',this.value)">
-      <label>Fiyat (₺)</label><input type="number" value="${p.price}" onchange="updatePrice(${i},'price',this.value)">
-      <label>Dönem</label><input value="${p.period}" onchange="updatePrice(${i},'period',this.value)">
-      <label>Özellikler (virgülle ayır)</label><textarea onchange="updatePrice(${i},'features',this.value)">${p.features.join(', ')}</textarea>
-      <label><input type="checkbox" ${p.popular?'checked':''} onchange="updatePrice(${i},'popular',this.checked)" style="width:auto"> Popüler Rozeti</label>
-      <button onclick="removePlan(${i})" style="background:#fee2e2;color:#991b1b;margin-top:8px;padding:6px 10px;font-size:12px">Sil</button>
+  document.getElementById('pricingList').innerHTML=cfg.pricing.map((p,i)=>`
+    <div style="border:1px solid #eee;border-radius:10px;padding:10px">
+      <label>Plan</label><input value="${p.name}" onchange="cfg.pricing[${i}].name=this.value">
+      <label>Fiyat</label><input type="number" value="${p.price}" onchange="cfg.pricing[${i}].price=parseInt(this.value)">
+      <label>Özellikler (virgül)</label><textarea onchange="cfg.pricing[${i}].features=this.value.split(',').map(s=>s.trim())">${p.features.join(', ')}</textarea>
+      <label><input type="checkbox" ${p.popular?'checked':''} onchange="cfg.pricing[${i}].popular=this.checked" style="width:auto"> Popüler</label>
+      <button onclick="cfg.pricing.splice(${i},1);renderPricing()" class="red" style="margin-top:6px">Sil</button>
     </div>
   `).join('');
 }
-
-function updatePrice(idx, field, value){
-  if(field==='price') value=parseInt(value);
-  if(field==='features') value=value.split(',').map(s=>s.trim()).filter(Boolean);
-  currentConfig.pricing[idx][field]=value;
-}
-function addPlan(){ currentConfig.pricing.push({name:'Yeni Plan', price:99, period:'ay', features:['Özellik 1'], popular:false}); renderPricing(); }
-function removePlan(i){ currentConfig.pricing.splice(i,1); renderPricing(); }
-
+function addPlan(){ cfg.pricing.push({name:'Yeni', price:99, period:'ay', features:['Özellik'], popular:false}); renderPricing(); }
 async function saveGeneral(){
-  const msg=document.getElementById('generalMsg');
-  msg.innerText='Kaydediliyor...';
-  try{
-    const res=await fetch('/api/admin/config',{method:'POST',headers:{'Content-Type':'application/json', Authorization:'Bearer '+token}, body:JSON.stringify({
-      heroTitle: document.getElementById('heroTitle').value,
-      heroSubtitle: document.getElementById('heroSubtitle').value,
-      announcement: document.getElementById('announcement').value,
-      contactEmail: document.getElementById('contactEmail').value,
-      contactPhone: document.getElementById('contactPhone').value
-    })});
-    const data=await res.json();
-    if(data.success){ msg.innerText='✅ Kaydedildi! Anasayfa güncellendi.'; msg.style.color='green'; } else { msg.innerText=data.error; msg.style.color='red'; }
-  }catch(e){ msg.innerText=e.message; }
+  const res=await fetch('/api/admin/config',{method:'POST',headers:{'Content-Type':'application/json', Authorization:'Bearer '+token}, body:JSON.stringify({trialDays: document.getElementById('trialDays').value, announcement: document.getElementById('announcement').value, heroTitle: document.getElementById('heroTitle').value, heroSubtitle: document.getElementById('heroSubtitle').value})});
+  const d=await res.json(); document.getElementById('gMsg').innerText=d.success?'✅ Kaydedildi':'Hata';
 }
-
 async function savePricing(){
-  const msg=document.getElementById('pricingMsg');
-  msg.innerText='Kaydediliyor...';
-  try{
-    const res=await fetch('/api/admin/config',{method:'POST',headers:{'Content-Type':'application/json', Authorization:'Bearer '+token}, body:JSON.stringify({pricing: currentConfig.pricing})});
-    const data=await res.json();
-    if(data.success){ msg.innerText='✅ Fiyatlar kaydedildi!'; msg.style.color='green'; } else { msg.innerText=data.error; }
-  }catch(e){ msg.innerText=e.message; }
+  const res=await fetch('/api/admin/config',{method:'POST',headers:{'Content-Type':'application/json', Authorization:'Bearer '+token}, body:JSON.stringify({pricing: cfg.pricing})});
+  const d=await res.json(); document.getElementById('pMsg').innerText=d.success?'✅ Kaydedildi':'Hata';
 }
-
-async function loadStats(){
-  try{
-    const res=await fetch('/api/admin/stats',{headers:{Authorization:'Bearer '+token}});
-    const data=await res.json();
-    if(!data.success) return;
-    document.getElementById('statUsers').innerText=data.data.totalUsers;
-    document.getElementById('statConn').innerText=data.data.totalConnections;
-    document.getElementById('statProd').innerText=data.data.totalProducts;
-    document.getElementById('userTable').innerHTML=data.data.users.map(u=>`<tr><td style="padding:8px;border-bottom:1px solid #f0f0f0">${u.shopName}</td><td style="padding:8px;border-bottom:1px solid #f0f0f0">${u.email}</td></tr>`).join('');
-  }catch{}
+async function extendUser(id,days){
+  if(!confirm(days+' gün uzatılsın mı?')) return;
+  await fetch('/api/admin/users/'+id+'/extend',{method:'POST',headers:{'Content-Type':'application/json', Authorization:'Bearer '+token}, body:JSON.stringify({days})});
+  loadAll();
 }
-
+async function toggleUser(id){
+  await fetch('/api/admin/users/'+id+'/toggle',{method:'POST',headers:{Authorization:'Bearer '+token}});
+  loadAll();
+}
+async function checkTrials(){
+  const res=await fetch('/api/cron/check-trials');
+  const d=await res.json();
+  alert(`Kontrol edildi: ${d.checked} kullanıcı, ${d.expired} süresi biten, ${d.warnings} uyarı`);
+  loadAll();
+}
 function logout(){ localStorage.removeItem('admin_token'); location.reload(); }
-
 checkAuth();
 </script>
 </body>
