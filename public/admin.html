@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin - PazaryeriOS</title>
+<style>
+*{box-sizing:border-box}body{font-family:Inter,sans-serif;background:#f6f7f9;margin:0}
+header{background:#111;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
+.wrap{max-width:1100px;margin:0 auto;padding:24px;display:grid;gap:20px}
+.card{background:#fff;border:1px solid #eee;border-radius:16px;padding:22px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.stat{font-size:28px;font-weight:900}
+label{font-size:12px;font-weight:700;color:#666;display:block;margin:12px 0 6px;text-transform:uppercase}
+input,textarea{width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px}
+textarea{min-height:80px;resize:vertical}
+button{padding:10px 18px;background:#111;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer}
+button.green{background:#16a34a}button.ghost{background:#fff;color:#111;border:1px solid #ddd}
+.pricing-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.price-card{border:1.5px solid #eee;border-radius:12px;padding:16px}
+@media(max-width:800px){.grid3,.pricing-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+<div style="font-weight:900">pazaryeriOS ADMIN</div>
+<div style="display:flex;gap:10px;align-items:center"><span id="adminEmail" style="font-size:12px;color:#888"></span><button class="ghost" onclick="logout()" style="background:#222;color:#fff;border:none">Çıkış</button></div>
+</header>
+
+<div id="loginBox" class="wrap" style="max-width:400px;margin-top:60px">
+<div class="card">
+<h2>Admin Girişi</h2>
+<p style="color:#666;font-size:13px">Sadece yönetici girebilir</p>
+<label>Email</label><input id="email" value="admin@pazaryerios.com">
+<label>Şifre</label><input id="pass" type="password" value="admin123">
+<button onclick="adminLogin()" style="width:100%;margin-top:16px">Giriş Yap</button>
+<div id="loginMsg" style="margin-top:10px;font-size:13px;color:red"></div>
+<p style="font-size:11px;color:#888;margin-top:12px">Varsayılan: admin@pazaryerios.com / admin123<br>app.js içinden değiştirebilirsin</p>
+</div>
+</div>
+
+<div id="adminBox" class="wrap" style="display:none">
+
+<div class="grid3">
+<div class="card"><div style="font-size:12px;color:#888">TOPLAM KULLANICI</div><div class="stat" id="statUsers">-</div></div>
+<div class="card"><div style="font-size:12px;color:#888">TOPLAM BAĞLANTI</div><div class="stat" id="statConn">-</div></div>
+<div class="card"><div style="font-size:12px;color:#888">TOPLAM ÜRÜN</div><div class="stat" id="statProd">-</div></div>
+</div>
+
+<div class="card">
+<h2>📢 Duyuru & Anasayfa Ayarları</h2>
+<label>Üst Duyuru Bandı</label><input id="announcement" placeholder="🎉 Yeni: Amazon ve Etsy entegrasyonu aktif!">
+<label>Ana Başlık (Hero Title)</label><textarea id="heroTitle"></textarea>
+<label>Alt Açıklama (Hero Subtitle)</label><textarea id="heroSubtitle"></textarea>
+<label>İletişim Email</label><input id="contactEmail">
+<label>İletişim Telefon</label><input id="contactPhone">
+<button class="green" onclick="saveGeneral()" style="margin-top:14px">Genel Ayarları Kaydet →</button>
+<span id="generalMsg" style="margin-left:10px;font-size:13px"></span>
+</div>
+
+<div class="card">
+<h2>💰 Fiyatlandırma (Pricing)</h2>
+<div id="pricingList" class="pricing-grid"></div>
+<button onclick="addPlan()" style="margin-top:12px" class="ghost">+ Yeni Plan Ekle</button>
+<button class="green" onclick="savePricing()" style="margin-top:12px">Fiyatları Kaydet →</button>
+<span id="pricingMsg" style="margin-left:10px;font-size:13px"></span>
+</div>
+
+<div class="card">
+<h2>👥 Kullanıcılar</h2>
+<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid #eee">Mağaza</th><th style="text-align:left;padding:8px;border-bottom:1px solid #eee">Email</th></tr></thead><tbody id="userTable"></tbody></table>
+</div>
+
+</div>
+
+<script>
+let token = localStorage.getItem('admin_token');
+let currentConfig = null;
+
+function checkAuth(){
+  if(token){
+    try{
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if(payload.isAdmin){ showAdmin(); return; }
+    }catch{}
+  }
+  document.getElementById('loginBox').style.display='block';
+  document.getElementById('adminBox').style.display='none';
+}
+
+async function adminLogin(){
+  const email=document.getElementById('email').value.trim();
+  const password=document.getElementById('pass').value.trim();
+  const msg=document.getElementById('loginMsg');
+  msg.innerText='Giriş yapılıyor...';
+  try{
+    const res=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const data=await res.json();
+    if(!data.success){ msg.innerText=data.error; return; }
+    localStorage.setItem('admin_token', data.token);
+    token=data.token;
+    showAdmin();
+  }catch(e){ msg.innerText=e.message; }
+}
+
+async function showAdmin(){
+  document.getElementById('loginBox').style.display='none';
+  document.getElementById('adminBox').style.display='grid';
+  const payload = JSON.parse(atob(token.split('.')[1]));
+  document.getElementById('adminEmail').innerText = payload.email;
+  await loadConfig();
+  await loadStats();
+}
+
+async function loadConfig(){
+  const res=await fetch('/api/admin/config',{headers:{Authorization:'Bearer '+token}});
+  const data=await res.json();
+  currentConfig=data.data;
+  document.getElementById('announcement').value=currentConfig.announcement||'';
+  document.getElementById('heroTitle').value=currentConfig.heroTitle||'';
+  document.getElementById('heroSubtitle').value=currentConfig.heroSubtitle||'';
+  document.getElementById('contactEmail').value=currentConfig.contactEmail||'';
+  document.getElementById('contactPhone').value=currentConfig.contactPhone||'';
+  renderPricing();
+}
+
+function renderPricing(){
+  const container=document.getElementById('pricingList');
+  container.innerHTML=currentConfig.pricing.map((p,i)=>`
+    <div class="price-card">
+      <label>Plan Adı</label><input value="${p.name}" onchange="updatePrice(${i},'name',this.value)">
+      <label>Fiyat (₺)</label><input type="number" value="${p.price}" onchange="updatePrice(${i},'price',this.value)">
+      <label>Dönem</label><input value="${p.period}" onchange="updatePrice(${i},'period',this.value)">
+      <label>Özellikler (virgülle ayır)</label><textarea onchange="updatePrice(${i},'features',this.value)">${p.features.join(', ')}</textarea>
+      <label><input type="checkbox" ${p.popular?'checked':''} onchange="updatePrice(${i},'popular',this.checked)" style="width:auto"> Popüler Rozeti</label>
+      <button onclick="removePlan(${i})" style="background:#fee2e2;color:#991b1b;margin-top:8px;padding:6px 10px;font-size:12px">Sil</button>
+    </div>
+  `).join('');
+}
+
+function updatePrice(idx, field, value){
+  if(field==='price') value=parseInt(value);
+  if(field==='features') value=value.split(',').map(s=>s.trim()).filter(Boolean);
+  currentConfig.pricing[idx][field]=value;
+}
+function addPlan(){ currentConfig.pricing.push({name:'Yeni Plan', price:99, period:'ay', features:['Özellik 1'], popular:false}); renderPricing(); }
+function removePlan(i){ currentConfig.pricing.splice(i,1); renderPricing(); }
+
+async function saveGeneral(){
+  const msg=document.getElementById('generalMsg');
+  msg.innerText='Kaydediliyor...';
+  try{
+    const res=await fetch('/api/admin/config',{method:'POST',headers:{'Content-Type':'application/json', Authorization:'Bearer '+token}, body:JSON.stringify({
+      heroTitle: document.getElementById('heroTitle').value,
+      heroSubtitle: document.getElementById('heroSubtitle').value,
+      announcement: document.getElementById('announcement').value,
+      contactEmail: document.getElementById('contactEmail').value,
+      contactPhone: document.getElementById('contactPhone').value
+    })});
+    const data=await res.json();
+    if(data.success){ msg.innerText='✅ Kaydedildi! Anasayfa güncellendi.'; msg.style.color='green'; } else { msg.innerText=data.error; msg.style.color='red'; }
+  }catch(e){ msg.innerText=e.message; }
+}
+
+async function savePricing(){
+  const msg=document.getElementById('pricingMsg');
+  msg.innerText='Kaydediliyor...';
+  try{
+    const res=await fetch('/api/admin/config',{method:'POST',headers:{'Content-Type':'application/json', Authorization:'Bearer '+token}, body:JSON.stringify({pricing: currentConfig.pricing})});
+    const data=await res.json();
+    if(data.success){ msg.innerText='✅ Fiyatlar kaydedildi!'; msg.style.color='green'; } else { msg.innerText=data.error; }
+  }catch(e){ msg.innerText=e.message; }
+}
+
+async function loadStats(){
+  try{
+    const res=await fetch('/api/admin/stats',{headers:{Authorization:'Bearer '+token}});
+    const data=await res.json();
+    if(!data.success) return;
+    document.getElementById('statUsers').innerText=data.data.totalUsers;
+    document.getElementById('statConn').innerText=data.data.totalConnections;
+    document.getElementById('statProd').innerText=data.data.totalProducts;
+    document.getElementById('userTable').innerHTML=data.data.users.map(u=>`<tr><td style="padding:8px;border-bottom:1px solid #f0f0f0">${u.shopName}</td><td style="padding:8px;border-bottom:1px solid #f0f0f0">${u.email}</td></tr>`).join('');
+  }catch{}
+}
+
+function logout(){ localStorage.removeItem('admin_token'); location.reload(); }
+
+checkAuth();
+</script>
+</body>
+</html>
