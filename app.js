@@ -7,7 +7,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-const JWT_SECRET = 'gizli-anahtar-123';
+const JWT_SECRET = process.env.JWT_SECRET || 'gizli-anahtar-123';
+const RESEND_API_KEY = process.env.RESEND_API_KEY || ''; // Render'da Environment'dan gelecek
+const FROM_EMAIL = process.env.FROM_EMAIL || 'PazaryeriOS <onboarding@resend.dev>'; // Resend test domain
 
 let users = [];
 let products = [
@@ -16,7 +18,7 @@ let products = [
   { barcode: '86800003', title: 'Mavi Kot', stock: 15, marketplaces: ['Hepsiburada','N11'] }
 ];
 let orders = [{ id: 1001, marketplace: 'Trendyol', orderNumber: 'TR-123', barcode: '86800001', product: 'Siyah T-Shirt', qty: 1 }];
-let emailLogs = []; // Mail logları
+let emailLogs = [];
 
 const ALL_MARKETPLACES = [
   { id: 'trendyol', name: 'Trendyol', icon: '🟧', fields: ['supplierId','apiKey','apiSecret'], desc: 'SupplierId, API Key, Secret' },
@@ -48,7 +50,6 @@ let siteConfig = {
 
 const ADMIN_CREDENTIALS = { email: "admin@pazaryerios.com", password: "admin123" };
 
-// ===== HELPER: TRIAL HESAPLAMA =====
 function getTrialInfo(user){
   const now = new Date();
   const endsAt = new Date(user.trialEndsAt);
@@ -59,31 +60,81 @@ function getTrialInfo(user){
   return { diffDays: isExpired ? 0 : diffDays, isExpired, isActive, endsAt };
 }
 
-function sendEmail(to, subject, body){
-  // Gerçekte burada SendGrid / Resend / SMTP olacak
-  // Şimdilik logluyoruz - Render loglarında görünecek
-  const log = { to, subject, body, at: new Date().toLocaleString('tr-TR') };
+// ===== GERÇEK MAİL GÖNDERME - RESEND =====
+async function sendEmail(to, subject, htmlBody){
+  const log = { to, subject, body: htmlBody, at: new Date().toLocaleString('tr-TR'), status: 'logged' };
   emailLogs.push(log);
-  console.log(`[MAIL] To:${to} Subject:${subject}`);
+  
+  // Eğer RESEND_API_KEY yoksa sadece logla
+  if(!RESEND_API_KEY){
+    console.log(`[MAIL-LOG] To:${to} Subject:${subject} (API anahtarı yok, sadece log)`);
+    log.status = 'logged - no API key';
+    return log;
+  }
+
+  try{
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to: [to],
+        subject: subject,
+        html: htmlBody
+      })
+    });
+    const data = await response.json();
+    if(!response.ok){
+      console.error('[MAIL-ERROR] Resend hatası:', data);
+      log.status = 'failed: ' + JSON.stringify(data);
+      log.error = data;
+    } else {
+      console.log(`[MAIL-SENT] To:${to} ID:${data.id}`);
+      log.status = 'sent';
+      log.resendId = data.id;
+    }
+  }catch(e){
+    console.error('[MAIL-ERROR]', e.message);
+    log.status = 'error: ' + e.message;
+    log.error = e.message;
+  }
   return log;
 }
 
-function checkAndNotifyTrial(user){
+function emailTemplate(title, message, shopName, ctaText, ctaLink){
+  return `
+  <div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">
+    <div style="background:#111;color:#fff;padding:20px;text-align:center;font-weight:900;font-size:20px">pazaryeriOS</div>
+    <div style="padding:30px">
+      <h2 style="margin:0 0 12px 0;font-size:22px">${title}</h2>
+      <p style="color:#444;line-height:1.6">Merhaba <b>${shopName}</b>,</p>
+      <p style="color:#444;line-height:1.6">${message}</p>
+      ${ctaText ? `<div style="text-align:center;margin:28px 0"><a href="${ctaLink}" style="background:#111;color:#fff;padding:14px 28px;border-radius:100px;text-decoration:none;font-weight:700;display:inline-block">${ctaText}</a></div>` : ''}
+      <p style="color:#888;font-size:12px;margin-top:30px;border-top:1px solid #eee;padding-top:16px">Bu mail PazaryeriOS tarafından otomatik gönderildi. Destek: ${siteConfig.contactEmail}</p>
+    </div>
+  </div>`;
+}
+
+async function checkAndNotifyTrial(user){
   const info = getTrialInfo(user);
-  const now = Date.now();
-  // 3 gün ve 1 gün kala uyarı
   if(!user.emailsSent) user.emailsSent = {};
   
   if(info.diffDays === 3 && !user.emailsSent['3days']){
-    sendEmail(user.email, '⏰ Deneme süreniz 3 gün sonra bitiyor - PazaryeriOS', `Merhaba ${user.shopName}, deneme süreniz 3 gün sonra bitiyor. Mağazanızın kapanmaması için paketinizi yükseltin: https://pazaryerios.onrender.com`);
+    await sendEmail(user.email, '⏰ Deneme süreniz 3 gün sonra bitiyor - PazaryeriOS',
+      emailTemplate('⏰ 3 gün kaldı', `Deneme süreniz <b>3 gün sonra bitiyor</b>. Mağazanızın kapanmaması için hemen paketinizi yükseltin.<br><br>Bitiş tarihi: <b>${info.endsAt.toLocaleDateString('tr-TR')}</b>`, user.shopName, 'Paketimi Yükselt →', 'https://pazaryerios.onrender.com/#pricing'));
     user.emailsSent['3days'] = true;
   }
   if(info.diffDays === 1 && !user.emailsSent['1day']){
-    sendEmail(user.email, '🚨 Son 1 gün! Mağazanız yarın kapanacak - PazaryeriOS', `Merhaba ${user.shopName}, deneme süreniz yarın bitiyor. Hemen abonelik alın.`);
+    await sendEmail(user.email, '🚨 Son 1 gün! Mağazanız yarın kapanacak - PazaryeriOS',
+      emailTemplate('🚨 Son 1 gün!', `Deneme süreniz <b>yarın bitiyor</b>. Mağazanızın kapanmaması için son şans!<br><br>Yarın bu saatte mağazanız durdurulacak.`, user.shopName, 'Hemen Abone Ol →', 'https://pazaryerios.onrender.com/#pricing'));
     user.emailsSent['1day'] = true;
   }
   if(info.isExpired && !user.emailsSent['expired']){
-    sendEmail(user.email, '❌ Deneme süreniz bitti - Mağazanız durduruldu', `Merhaba ${user.shopName}, deneme süreniz bitti ve mağazanız durduruldu. Yeniden aktif etmek için abonelik alın.`);
+    await sendEmail(user.email, '❌ Deneme süreniz bitti - Mağazanız durduruldu',
+      emailTemplate('❌ Mağazanız durduruldu', `Deneme süreniz bitti ve mağazanız <b>durduruldu</b>.<br><br>Tekrar aktif etmek için bir paket seçin ve bizimle iletişime geçin. Verileriniz 30 gün daha saklanacak.`, user.shopName, 'Destek ile Görüş →', `mailto:${siteConfig.contactEmail}`));
     user.emailsSent['expired'] = true;
     user.isActive = false;
   }
@@ -97,20 +148,19 @@ function auth(req,res,next){
     const decoded = jwt.verify(t,JWT_SECRET);
     const user = users.find(u=>u.id===decoded.id);
     if(!user) return res.status(401).json({error:'Kullanıcı yok'});
-    const trialInfo = checkAndNotifyTrial(user);
+    const trialInfo = getTrialInfo(user);
     if(trialInfo.isExpired){
       return res.status(403).json({error:'⛔ Deneme süreniz bitti. Lütfen abonelik satın alın.', trialExpired:true, trialInfo});
     }
-    req.user=decoded;
-    req.userDoc=user;
-    req.trialInfo=trialInfo;
+    // Async mail check - bekletmeden
+    checkAndNotifyTrial(user).catch(()=>{});
+    req.user=decoded; req.userDoc=user; req.trialInfo=trialInfo;
     next();
   }catch(e){
     if(e.message && e.message.includes('Deneme')) throw e;
     res.status(401).json({error:'Token hatali'})
   }
 }
-
 function adminAuth(req,res,next){
   const t=req.headers.authorization?.split(' ')[1];
   if(!t) return res.status(401).json({error:'Admin girisi yok'});
@@ -119,13 +169,7 @@ function adminAuth(req,res,next){
 
 // PUBLIC
 app.get('/api/config', (req,res)=> res.json({success:true, data: siteConfig}));
-
-// TRIAL STATUS - Giriş yapmış kullanıcı için
-app.get('/api/me/trial', auth, (req,res)=>{
-  res.json({success:true, data: { ...req.trialInfo, shopName: req.userDoc.shopName, email: req.userDoc.email }});
-});
-
-// ADMIN LOGIN
+app.get('/api/me/trial', auth, (req,res)=> res.json({success:true, data: { ...req.trialInfo, shopName: req.userDoc.shopName, email: req.userDoc.email }}));
 app.post('/api/admin/login', async (req,res)=>{
   const {email,password}=req.body;
   if(email===ADMIN_CREDENTIALS.email && password===ADMIN_CREDENTIALS.password){
@@ -147,46 +191,38 @@ app.post('/api/admin/config', adminAuth, (req,res)=>{
   res.json({success:true, message:'Ayarlar kaydedildi', data: siteConfig});
 });
 app.get('/api/admin/stats', adminAuth, (req,res)=>{
-  const usersWithTrial = users.map(u=>{
-    const info = getTrialInfo(u);
-    return { ...u, trialInfo: info, passwordHash: undefined };
-  });
-  res.json({
-    success:true,
-    data:{
-      totalUsers: users.length,
-      totalConnections: Object.values(connections).flat().length,
-      totalProducts: products.length,
-      totalOrders: orders.length,
-      emailLogs: emailLogs.slice(-20).reverse(),
-      users: usersWithTrial
-    }
-  });
+  const usersWithTrial = users.map(u=>({...u, trialInfo: getTrialInfo(u), passwordHash: undefined}));
+  res.json({success:true, data:{ totalUsers: users.length, totalConnections: Object.values(connections).flat().length, totalProducts: products.length, totalOrders: orders.length, emailLogs: emailLogs.slice(-30).reverse(), users: usersWithTrial, resendConfigured: !!RESEND_API_KEY }});
 });
-// ADMIN - Trial uzatma
-app.post('/api/admin/users/:id/extend', adminAuth, (req,res)=>{
+app.post('/api/admin/users/:id/extend', adminAuth, async (req,res)=>{
   const user = users.find(u=>u.id==req.params.id);
   if(!user) return res.status(404).json({error:'Kullanıcı yok'});
-  const {days} = req.body;
-  const addDays = parseInt(days) || 7;
+  const addDays = parseInt(req.body.days) || 7;
   const currentEnd = new Date(user.trialEndsAt);
   currentEnd.setDate(currentEnd.getDate() + addDays);
   user.trialEndsAt = currentEnd.toISOString();
   user.isActive = true;
-  user.emailsSent = {}; // mailleri sıfırla
-  sendEmail(user.email, `✅ Deneme süreniz ${addDays} gün uzatıldı`, `Merhaba ${user.shopName}, deneme süreniz ${addDays} gün uzatıldı. Yeni bitiş: ${currentEnd.toLocaleDateString('tr-TR')}`);
-  res.json({success:true, message: `${addDays} gün uzatıldı`, user: {...user, passwordHash: undefined}});
+  user.emailsSent = {};
+  await sendEmail(user.email, `✅ Deneme süreniz ${addDays} gün uzatıldı`,
+    emailTemplate(`✅ ${addDays} gün uzatıldı!`, `Deneme süreniz <b>${addDays} gün uzatıldı</b>.<br>Yeni bitiş: <b>${currentEnd.toLocaleDateString('tr-TR')}</b>`, user.shopName, 'Panele Git →', 'https://pazaryerios.onrender.com/dashboard.html'));
+  res.json({success:true, message: `${addDays} gün uzatıldı`});
 });
-// ADMIN - Kullanıcıyı aktif/pasif yap
 app.post('/api/admin/users/:id/toggle', adminAuth, (req,res)=>{
   const user = users.find(u=>u.id==req.params.id);
   if(!user) return res.status(404).json({error:'Yok'});
   user.isActive = !user.isActive;
   res.json({success:true, isActive: user.isActive});
 });
+// ADMIN - Test mail gönder
+app.post('/api/admin/test-email', adminAuth, async (req,res)=>{
+  const {to} = req.body;
+  if(!to) return res.status(400).json({error:'Email gerekli'});
+  const result = await sendEmail(to, '✅ PazaryeriOS Mail Testi',
+    emailTemplate('✅ Mail sistemi çalışıyor!', 'Bu bir test mailidir. Resend entegrasyonunuz başarıyla çalışıyor. Artık müşterilerinize otomatik mail gidecek.', 'Test Mağaza', 'Panele Git', 'https://pazaryerios.onrender.com'));
+  res.json({success:true, result});
+});
 
 app.get('/api/marketplaces', (req,res)=> res.json({success:true,data:ALL_MARKETPLACES}));
-
 app.post('/api/register', async (req,res)=>{
   const {email,password,shopName}=req.body;
   if(users.find(u=>u.email===email)) return res.status(400).json({error:'Email var'});
@@ -194,34 +230,25 @@ app.post('/api/register', async (req,res)=>{
   const now = new Date();
   const trialEndsAt = new Date();
   trialEndsAt.setDate(now.getDate() + (siteConfig.trialDays || 14));
-  const u={
-    id: Date.now(), email, passwordHash:h, shopName,
-    createdAt: now.toISOString(),
-    trialEndsAt: trialEndsAt.toISOString(),
-    isActive: true,
-    plan: 'trial',
-    emailsSent: {}
-  };
+  const u={ id: Date.now(), email, passwordHash:h, shopName, createdAt: now.toISOString(), trialEndsAt: trialEndsAt.toISOString(), isActive: true, plan: 'trial', emailsSent: {} };
   users.push(u);
-  sendEmail(email, '🎉 Hoşgeldiniz! 14 günlük denemeniz başladı', `Merhaba ${shopName}, PazaryeriOS denemeniz başladı. Bitiş: ${trialEndsAt.toLocaleDateString('tr-TR')}`);
+  await sendEmail(email, '🎉 Hoşgeldiniz! 14 günlük denemeniz başladı',
+    emailTemplate('🎉 Hoşgeldiniz!', `PazaryeriOS denemeniz başladı!<br><br><b>${siteConfig.trialDays} gün boyunca</b> tüm pazaryerlerini ücretsiz deneyebilirsiniz.<br>Bitiş: <b>${trialEndsAt.toLocaleDateString('tr-TR')}</b><br><br>Hemen mağazanızı bağlayarak başlayın.`, shopName, 'Mağazamı Kur →', 'https://pazaryerios.onrender.com/dashboard.html'));
   const token=jwt.sign({id:u.id,email,shopName},JWT_SECRET);
   res.json({success:true,token, trialEndsAt: u.trialEndsAt})
 });
-
 app.post('/api/login', async (req,res)=>{
   const {email,password}=req.body;
   const u=users.find(x=>x.email===email);
   if(!u) return res.status(404).json({error:'Yok'});
   const ok=await bcrypt.compare(password,u.passwordHash);
   if(!ok) return res.status(400).json({error:'Sifre hatali'});
-  const trialInfo = checkAndNotifyTrial(u);
-  if(trialInfo.isExpired){
-    return res.status(403).json({error:'⛔ Deneme süreniz bitti. Lütfen abonelik satın alın.', trialExpired:true, trialInfo});
-  }
+  const trialInfo = getTrialInfo(u);
+  if(trialInfo.isExpired) return res.status(403).json({error:'⛔ Deneme süreniz bitti.', trialExpired:true, trialInfo});
+  checkAndNotifyTrial(u).catch(()=>{});
   const token=jwt.sign({id:u.id,email:u.email,shopName:u.shopName},JWT_SECRET);
   res.json({success:true,token, trialInfo})
 });
-
 app.get('/api/connections',auth,(req,res)=> res.json({success:true,data:connections[req.user.id]||[], trialInfo: req.trialInfo}));
 app.post('/api/connections',auth,(req,res)=>{
   const {marketplace,apiKey,apiSecret,supplierId,storeUrl,sellerId} = req.body;
@@ -234,7 +261,7 @@ app.delete('/api/connections/:marketplace',auth,(req,res)=>{
   if(connections[req.user.id]) connections[req.user.id] = connections[req.user.id].filter(c=>c.marketplace!==req.params.marketplace);
   res.json({success:true})
 });
-app.get('/api/products',auth,(req,res)=>res.json({success:true,data:products, trialInfo: req.trialInfo}));
+app.get('/api/products',auth,(req,res)=>res.json({success:true,data:products}));
 app.get('/api/orders',auth,(req,res)=>res.json({success:true,data:orders}));
 app.post('/api/orders/mock-sell',auth,(req,res)=>{
   const p=products.find(x=>x.barcode===req.body.barcode);
@@ -245,22 +272,17 @@ app.get('/api/trendyol/orders',auth,async (req,res)=>{
   const userConns = connections[req.user.id] || [];
   const trendyolConn = userConns.find(c=>c.marketplace==='Trendyol');
   if(!trendyolConn) return res.json({success:false, error:'Önce Trendyol bağlantısı eklemelisin.'});
-  return res.json({ success:true, count: 2, data: [
-    { orderNumber: 'TR-DEMO-001', customer: 'Test Müşteri', product: 'Siyah T-Shirt', qty: 1, status: 'Created' },
-    { orderNumber: 'TR-DEMO-002', customer: 'Ayşe Yılmaz', product: 'Beyaz Sneaker', qty: 2, status: 'Picking' }
-  ]});
+  return res.json({ success:true, count: 2, data: [{ orderNumber: 'TR-DEMO-001', customer: 'Test Müşteri', product: 'Siyah T-Shirt', qty: 1, status: 'Created' }]});
 });
-
-// CRON - Her 1 saatte bir tüm kullanıcıları kontrol et (Render'da manuel tetiklenebilir)
-app.get('/api/cron/check-trials', (req,res)=>{
+app.get('/api/cron/check-trials', async (req,res)=>{
   let expiredCount=0, warningCount=0;
-  users.forEach(u=>{
-    const info = checkAndNotifyTrial(u);
+  for(const u of users){
+    const info = await checkAndNotifyTrial(u);
     if(info.isExpired) expiredCount++;
     if(info.diffDays<=3 && info.diffDays>0) warningCount++;
-  });
-  res.json({success:true, checked: users.length, expired: expiredCount, warnings: warningCount, emailLogs: emailLogs.slice(-10)});
+  }
+  res.json({success:true, checked: users.length, expired: expiredCount, warnings: warningCount, emailLogs: emailLogs.slice(-10), resendConfigured: !!RESEND_API_KEY});
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT,()=>console.log('CALISIYOR PORT:'+PORT));
+app.listen(PORT,()=>console.log('CALISIYOR PORT:'+PORT+' RESEND:'+(RESEND_API_KEY?'AKTIF':'YOK')));
