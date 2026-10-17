@@ -1,68 +1,157 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
-<meta charset="UTF-8"><title>Admin - Mail Ayarları</title>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin - Trial Sistemi</title>
 <style>
 *{box-sizing:border-box}body{font-family:Inter,sans-serif;background:#f6f7f9;margin:0}
-header{background:#111;color:#fff;padding:16px 24px;display:flex;justify-content:space-between}
-.wrap{max-width:1100px;margin:0 auto;padding:20px;display:grid;gap:16px}
-.card{background:#fff;border:1px solid #eee;border-radius:16px;padding:20px}
-input{width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;margin:6px 0}
-button{padding:8px 14px;background:#111;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer}
-button.green{background:#16a34a}
-.badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700}
+header{background:#111;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
+.wrap{max-width:1200px;margin:0 auto;padding:20px;display:grid;gap:16px}
+.card{background:#fff;border:1px solid #eee;border-radius:16px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.stat{font-size:26px;font-weight:900}
+label{font-size:11px;font-weight:700;color:#666;display:block;margin:10px 0 4px;text-transform:uppercase}
+input,textarea,select{width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px}
+button{padding:8px 14px;background:#111;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:12px}
+button.green{background:#16a34a}button.red{background:#ef4444}button.ghost{background:#fff;color:#111;border:1px solid #ddd}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px;border-bottom:1px solid #f0f0f0;text-align:left}
+.badge{padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700}.badge-green{background:#dcfce7;color:#166534}.badge-red{background:#fee2e2;color:#991b1b}.badge-yellow{background:#fef9c3;color:#854d0e}
+@media(max-width:800px){.grid4{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
-<header><div style="font-weight:900">pazaryeriOS ADMIN</div><div><span id="mailStatus"></span> <button onclick="logout()" style="background:#222">Çıkış</button></div></header>
-<div id="loginBox" class="wrap" style="max-width:400px;margin-top:40px"><div class="card"><h3>Admin</h3><input id="email" value="admin@pazaryerios.com"><input id="pass" type="password" value="admin123"><button onclick="login()" style="width:100%;margin-top:10px">Giriş</button><div id="loginMsg" style="color:red;font-size:12px"></div></div></div>
+<header><div style="font-weight:900">pazaryeriOS ADMIN - TRIAL</div><div style="display:flex;gap:8px"><button onclick="checkTrials()" class="ghost" style="background:#222;color:#fff;border:none">Cron Çalıştır</button><button onclick="logout()" class="ghost" style="background:#222;color:#fff;border:none">Çıkış</button></div></header>
+
+<div id="loginBox" class="wrap" style="max-width:400px;margin-top:60px">
+<div class="card"><h3>Admin Girişi</h3><label>Email</label><input id="email" value="admin@pazaryerios.com"><label>Şifre</label><input id="pass" type="password" value="admin123"><button onclick="adminLogin()" style="width:100%;margin-top:12px">Giriş</button><div id="loginMsg" style="color:red;font-size:12px;margin-top:8px"></div></div>
+</div>
+
 <div id="adminBox" class="wrap" style="display:none">
+
+<div class="grid4">
+<div class="card"><div style="font-size:11px;color:#888">KULLANICI</div><div class="stat" id="sUsers">-</div></div>
+<div class="card"><div style="font-size:11px;color:#888">AKTİF DENEME</div><div class="stat" id="sActive" style="color:#16a34a">-</div></div>
+<div class="card"><div style="font-size:11px;color:#888">SÜRESİ BİTEN</div><div class="stat" id="sExpired" style="color:#ef4444">-</div></div>
+<div class="card"><div style="font-size:11px;color:#888">GÖNDERİLEN MAİL</div><div class="stat" id="sMails">-</div></div>
+</div>
+
 <div class="card">
-<h3>📧 Mail Sistemi Durumu</h3>
-<div id="resendInfo" style="padding:12px;background:#f9fafb;border-radius:10px;font-size:13px;margin:10px 0"></div>
-<h4>Test Maili Gönder</h4>
-<div style="display:flex;gap:8px"><input id="testEmail" placeholder="test@gmail.com" style="flex:1"><button class="green" onclick="testMail()">Test Gönder →</button></div>
-<div id="testMsg" style="font-size:12px;margin-top:8px"></div>
+<h3>⚙️ Genel Ayarlar</h3>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+<div><label>Deneme Süresi (Gün)</label><input id="trialDays" type="number"></div>
+<div><label>Duyuru Bandı</label><input id="announcement"></div>
 </div>
+<label>Hero Başlık</label><textarea id="heroTitle"></textarea>
+<label>Hero Açıklama</label><textarea id="heroSubtitle"></textarea>
+<button class="green" onclick="saveGeneral()">Kaydet</button> <span id="gMsg"></span>
+</div>
+
 <div class="card">
-<h3>🔧 Resend Kurulum Rehberi (1 dakika)</h3>
-<ol style="font-size:13px;line-height:1.8">
-<li><b>resend.com</b> git → Sign up (Google ile)</li>
-<li>Dashboard → <b>API Keys</b> → <b>Create API Key</b> → Key'i kopyala (re_xxxx...)</li>
-<li>Render.com → senin <b>pazaryerios</b> servisine gir → <b>Environment</b> → <b>Add Variable</b></li>
-<li>Key: <code>RESEND_API_KEY</code> Value: <code>re_xxx kopyaladığın key</code> → Save</li>
-<li>Bir tane daha ekle: Key: <code>FROM_EMAIL</code> Value: <code>PazaryeriOS &lt;onboarding@resend.dev&gt;</code></li>
-<li>Render otomatik yeniden deploy edecek → Log'da <b>RESEND:AKTIF</b> yazacak</li>
-<li>Buradan test maili gönder → Gerçek mail gelecek!</li>
-</ol>
-<p style="font-size:12px;color:#666">Ücretsiz: 3.000 mail/ay, 100 mail/gün. Kendi domainini bağlarsan sınır kalkar.</p>
+<h3>💰 Fiyatlar</h3>
+<div id="pricingList" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px"></div>
+<button onclick="addPlan()" class="ghost" style="margin-top:10px">+ Plan Ekle</button>
+<button class="green" onclick="savePricing()" style="margin-top:10px">Fiyatları Kaydet</button> <span id="pMsg"></span>
 </div>
+
 <div class="card">
-<h3>📊 Son Mailler</h3>
-<div id="mailLogs" style="font-size:11px;max-height:300px;overflow:auto;background:#f9fafb;padding:10px;border-radius:8px"></div>
-<button onclick="loadStats()" style="margin-top:10px">Yenile</button>
+<h3>👥 Mağazalar & Deneme Takibi</h3>
+<table><thead><tr><th>Mağaza</th><th>Email</th><th>Kayıt</th><th>Bitiş</th><th>Kalan</th><th>Durum</th><th>İşlem</th></tr></thead><tbody id="userTable"></tbody></table>
 </div>
+
+<div class="card">
+<h3>📧 Son Gönderilen Mailler (Log)</h3>
+<div id="mailLogs" style="font-size:11px;max-height:200px;overflow:auto;background:#f9fafb;padding:10px;border-radius:8px"></div>
 </div>
+
+</div>
+
 <script>
 let token=localStorage.getItem('admin_token');
-function checkAuth(){ if(token){ try{ const p=JSON.parse(atob(token.split('.')[1])); if(p.isAdmin){ showAdmin(); return; } }catch{} } document.getElementById('loginBox').style.display='block'; }
-async function login(){
-  const res=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('email').value,password:document.getElementById('pass').value})});
-  const d=await res.json(); if(!d.success){ document.getElementById('loginMsg').innerText=d.error; return; } localStorage.setItem('admin_token',d.token); token=d.token; showAdmin();
+let cfg=null;
+function checkAuth(){
+  if(token){ try{ const p=JSON.parse(atob(token.split('.')[1])); if(p.isAdmin){ showAdmin(); return; } }catch{} }
+  document.getElementById('loginBox').style.display='block';
 }
-async function showAdmin(){ document.getElementById('loginBox').style.display='none'; document.getElementById('adminBox').style.display='grid'; loadStats(); }
-async function loadStats(){
-  const res=await fetch('/api/admin/stats',{headers:{Authorization:'Bearer '+token}}); const j=await res.json(); const d=j.data;
-  document.getElementById('resendInfo').innerHTML=`Resend Durumu: ${d.resendConfigured? '<span class="badge" style="background:#dcfce7;color:#166534">✅ AKTİF - Gerçek mail gidiyor</span>' : '<span class="badge" style="background:#fee2e2;color:#991b1b">❌ PASİF - Sadece log (API anahtarı yok)</span>'}<br>Toplam log: ${d.emailLogs.length}`;
-  document.getElementById('mailLogs').innerHTML=d.emailLogs.map(m=>`<div style="padding:6px 0;border-bottom:1px solid #eee"><b>${m.at}</b> | ${m.to} | ${m.subject} | <span style="color:${m.status.includes('sent')?'green':'orange'}">${m.status}</span> ${m.resendId? 'ID:'+m.resendId:''}</div>`).join('')||'Henüz mail yok';
-  document.getElementById('mailStatus').innerHTML=d.resendConfigured? '<span class="badge" style="background:#16a34a;color:#fff">Mail Aktif</span>' : '<span class="badge" style="background:#ef4444;color:#fff">Mail Pasif</span>';
+async function adminLogin(){
+  const email=document.getElementById('email').value, password=document.getElementById('pass').value;
+  const res=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+  const data=await res.json();
+  if(!data.success){ document.getElementById('loginMsg').innerText=data.error; return; }
+  localStorage.setItem('admin_token',data.token); token=data.token; showAdmin();
 }
-async function testMail(){
-  const to=document.getElementById('testEmail').value; if(!to) return alert('Email yaz');
-  const msg=document.getElementById('testMsg'); msg.innerText='Gönderiliyor...';
-  const res=await fetch('/api/admin/test-email',{method:'POST',headers:{'Content-Type':'application/json', Authorization:'Bearer '+token}, body:JSON.stringify({to})});
-  const d=await res.json(); msg.innerText= d.success? '✅ Gönderildi! '+JSON.stringify(d.result.status) : 'Hata: '+JSON.stringify(d);
-  loadStats();
+async function showAdmin(){
+  document.getElementById('loginBox').style.display='none';
+  document.getElementById('adminBox').style.display='grid';
+  await loadAll();
+}
+async function loadAll(){
+  const res=await fetch('/api/admin/config',{headers:{Authorization:'Bearer '+token}});
+  const j=await res.json(); cfg=j.data;
+  document.getElementById('trialDays').value=cfg.trialDays;
+  document.getElementById('announcement').value=cfg.announcement;
+  document.getElementById('heroTitle').value=cfg.heroTitle;
+  document.getElementById('heroSubtitle').value=cfg.heroSubtitle;
+  renderPricing();
+  const sRes=await fetch('/api/admin/stats',{headers:{Authorization:'Bearer '+token}});
+  const sJ=await sRes.json();
+  const d=sJ.data;
+  document.getElementById('sUsers').innerText=d.totalUsers;
+  document.getElementById('sActive').innerText=d.users.filter(u=>u.trialInfo.isActive).length;
+  document.getElementById('sExpired').innerText=d.users.filter(u=>u.trialInfo.isExpired).length;
+  document.getElementById('sMails').innerText=d.emailLogs.length;
+  document.getElementById('userTable').innerHTML=d.users.map(u=>{
+    const ti=u.trialInfo;
+    const badge = ti.isExpired? '<span class="badge badge-red">SÜRESİ BİTTİ</span>' : ti.diffDays<=3? '<span class="badge badge-yellow">'+ti.diffDays+' gün kaldı</span>' : '<span class="badge badge-green">'+ti.diffDays+' gün</span>';
+    return `<tr>
+      <td><b>${u.shopName}</b><br><span style="color:#888">${u.isActive===false? '❌ Kapalı': '✅ Açık'}</span></td>
+      <td>${u.email}</td>
+      <td>${new Date(u.createdAt).toLocaleDateString('tr-TR')}</td>
+      <td>${new Date(u.trialEndsAt).toLocaleDateString('tr-TR')}</td>
+      <td>${badge}</td>
+      <td>${ti.isExpired? 'Expired': 'Active'}</td>
+      <td>
+        <button onclick="extendUser(${u.id},7)">+7 Gün</button>
+        <button onclick="extendUser(${u.id},30)" class="green">+30 Gün</button>
+        <button onclick="toggleUser(${u.id})" class="ghost">${u.isActive===false?'Aç':'Kapat'}</button>
+      </td>
+    </tr>`;
+  }).join('');
+  document.getElementById('mailLogs').innerHTML=d.emailLogs.map(m=>`<div style="border-bottom:1px solid #eee;padding:6px 0"><b>${m.at}</b> → ${m.to} | ${m.subject}</div>`).join('') || 'Henüz mail yok';
+}
+function renderPricing(){
+  document.getElementById('pricingList').innerHTML=cfg.pricing.map((p,i)=>`
+    <div style="border:1px solid #eee;border-radius:10px;padding:10px">
+      <label>Plan</label><input value="${p.name}" onchange="cfg.pricing[${i}].name=this.value">
+      <label>Fiyat</label><input type="number" value="${p.price}" onchange="cfg.pricing[${i}].price=parseInt(this.value)">
+      <label>Özellikler (virgül)</label><textarea onchange="cfg.pricing[${i}].features=this.value.split(',').map(s=>s.trim())">${p.features.join(', ')}</textarea>
+      <label><input type="checkbox" ${p.popular?'checked':''} onchange="cfg.pricing[${i}].popular=this.checked" style="width:auto"> Popüler</label>
+      <button onclick="cfg.pricing.splice(${i},1);renderPricing()" class="red" style="margin-top:6px">Sil</button>
+    </div>
+  `).join('');
+}
+function addPlan(){ cfg.pricing.push({name:'Yeni', price:99, period:'ay', features:['Özellik'], popular:false}); renderPricing(); }
+async function saveGeneral(){
+  const res=await fetch('/api/admin/config',{method:'POST',headers:{'Content-Type':'application/json', Authorization:'Bearer '+token}, body:JSON.stringify({trialDays: document.getElementById('trialDays').value, announcement: document.getElementById('announcement').value, heroTitle: document.getElementById('heroTitle').value, heroSubtitle: document.getElementById('heroSubtitle').value})});
+  const d=await res.json(); document.getElementById('gMsg').innerText=d.success?'✅ Kaydedildi':'Hata';
+}
+async function savePricing(){
+  const res=await fetch('/api/admin/config',{method:'POST',headers:{'Content-Type':'application/json', Authorization:'Bearer '+token}, body:JSON.stringify({pricing: cfg.pricing})});
+  const d=await res.json(); document.getElementById('pMsg').innerText=d.success?'✅ Kaydedildi':'Hata';
+}
+async function extendUser(id,days){
+  if(!confirm(days+' gün uzatılsın mı?')) return;
+  await fetch('/api/admin/users/'+id+'/extend',{method:'POST',headers:{'Content-Type':'application/json', Authorization:'Bearer '+token}, body:JSON.stringify({days})});
+  loadAll();
+}
+async function toggleUser(id){
+  await fetch('/api/admin/users/'+id+'/toggle',{method:'POST',headers:{Authorization:'Bearer '+token}});
+  loadAll();
+}
+async function checkTrials(){
+  const res=await fetch('/api/cron/check-trials');
+  const d=await res.json();
+  alert(`Kontrol edildi: ${d.checked} kullanıcı, ${d.expired} süresi biten, ${d.warnings} uyarı`);
+  loadAll();
 }
 function logout(){ localStorage.removeItem('admin_token'); location.reload(); }
 checkAuth();

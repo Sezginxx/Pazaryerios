@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ödeme - PazaryeriOS</title>
+<style>
+*{box-sizing:border-box}body{font-family:Inter,sans-serif;background:#f6f7f9;margin:0;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px}
+.card{background:#fff;border:1px solid #eee;border-radius:20px;padding:32px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.08)}
+h2{margin:0 0 8px 0;font-size:24px;font-weight:900;letter-spacing:-1px}
+.sub{color:#888;font-size:13px;margin-bottom:20px}
+.row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px}
+.row.total{font-weight:900;font-size:18px;border:none;margin-top:10px}
+input{width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;margin:6px 0;font-size:14px}
+label{font-size:11px;font-weight:700;color:#666;text-transform:uppercase;margin-top:12px;display:block}
+button{width:100%;padding:14px;background:#111;color:#fff;border:none;border-radius:12px;font-weight:800;cursor:pointer;font-size:15px;margin-top:16px}
+button.green{background:#16a34a}
+button:disabled{background:#ccc;cursor:not-allowed}
+.badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#fef9c3;color:#854d0e;display:inline-block;margin-bottom:12px}
+.success{background:#dcfce7;color:#166534;padding:16px;border-radius:12px;text-align:center}
+.error{background:#fee2e2;color:#991b1b;padding:12px;border-radius:10px;font-size:13px;margin-top:10px;display:none}
+</style>
+</head>
+<body>
+<div class="card" id="checkoutBox">
+<div class="badge">🔒 Güvenli Ödeme - Test Modu</div>
+<h2 id="planName">Yükleniyor...</h2>
+<p class="sub" id="planDesc">Ödeme detayları</p>
+<div id="details"></div>
+<div id="cardForm">
+<label>Kart Üzerindeki İsim</label><input id="cardName" placeholder="Ad Soyad">
+<label>Kart Numarası (Test: 4111 1111 1111 1111)</label><input id="cardNumber" placeholder="4111 1111 1111 1111" maxlength="19">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label>Son Kullanma</label><input id="exp" placeholder="12/28"></div><div><label>CVC</label><input id="cvc" placeholder="123"></div></div>
+<div id="err" class="error"></div>
+<button id="payBtn" onclick="confirmPayment()">₺ Öde ve Aktif Et →</button>
+<p style="font-size:11px;color:#888;margin-top:12px;text-align:center">Test modunda gerçek kart çekilmez. Gerçek iyzico bağlanınca otomatik çekecek.<br>Render Environment'a IYZICO_API_KEY eklemen yeterli.</p>
+</div>
+<div id="successBox" style="display:none" class="success">
+<div style="font-size:40px">✅</div>
+<h3>Ödeme Başarılı!</h3>
+<p id="successMsg" style="font-size:13px;margin:10px 0"></p>
+<a href="/dashboard.html" style="display:inline-block;margin-top:12px;background:#111;color:#fff;padding:10px 20px;border-radius:100px;text-decoration:none;font-weight:700">Panele Git →</a>
+</div>
+</div>
+
+<script>
+const token=localStorage.getItem('token');
+if(!token) location.href='/login.html';
+const params=new URLSearchParams(location.search);
+const paymentId=params.get('paymentId');
+if(!paymentId){ document.getElementById('checkoutBox').innerHTML='<div class="error" style="display:block">Ödeme ID yok. <a href="/#pricing">Paket seçin</a></div>'; }
+
+async function loadPayment(){
+  try{
+    const res=await fetch('/api/payment/'+paymentId,{headers:{Authorization:'Bearer '+token}});
+    const data=await res.json();
+    if(!data.success){ document.getElementById('err').style.display='block'; document.getElementById('err').innerText=data.error; return; }
+    const p=data.data;
+    document.getElementById('planName').innerText=p.planName;
+    document.getElementById('planDesc').innerText=p.planName+' paketi - 1 ay';
+    document.getElementById('details').innerHTML=`
+      <div class="row"><span>Paket</span><b>${p.planName}</b></div>
+      <div class="row"><span>Tutar</span><b>₺${p.amount}</b></div>
+      <div class="row"><span>Durum</span><span style="text-transform:capitalize">${p.status}</span></div>
+      <div class="row total"><span>Toplam</span><span>₺${p.amount}</span></div>
+    `;
+    document.getElementById('payBtn').innerText=`₺${p.amount} Öde ve Aktif Et →`;
+    if(p.status==='paid'){
+      showSuccess(p);
+    }
+  }catch(e){ document.getElementById('err').style.display='block'; document.getElementById('err').innerText=e.message; }
+}
+
+async function confirmPayment(){
+  const btn=document.getElementById('payBtn');
+  const err=document.getElementById('err');
+  btn.disabled=true; btn.innerText='İşleniyor...'; err.style.display='none';
+  try{
+    const res=await fetch('/api/payment/'+paymentId+'/confirm',{method:'POST',headers:{Authorization:'Bearer '+token, 'Content-Type':'application/json'}});
+    const data=await res.json();
+    if(!data.success){ err.style.display='block'; err.innerText=data.error; btn.disabled=false; btn.innerText='Tekrar Dene'; return; }
+    showSuccess(data.data.payment);
+  }catch(e){ err.style.display='block'; err.innerText=e.message; btn.disabled=false; }
+}
+
+function showSuccess(payment){
+  document.getElementById('cardForm').style.display='none';
+  document.getElementById('details').style.display='none';
+  document.getElementById('successBox').style.display='block';
+  document.getElementById('successMsg').innerText=`${payment.planName} paketiniz aktif! Yeni bitiş tarihi panelinizde görünecek.`;
+}
+
+loadPayment();
+</script>
+</body>
+</html>

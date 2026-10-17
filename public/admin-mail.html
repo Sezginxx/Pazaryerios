@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"><title>Admin - Mail Ayarları</title>
+<style>
+*{box-sizing:border-box}body{font-family:Inter,sans-serif;background:#f6f7f9;margin:0}
+header{background:#111;color:#fff;padding:16px 24px;display:flex;justify-content:space-between}
+.wrap{max-width:1100px;margin:0 auto;padding:20px;display:grid;gap:16px}
+.card{background:#fff;border:1px solid #eee;border-radius:16px;padding:20px}
+input{width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;margin:6px 0}
+button{padding:8px 14px;background:#111;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer}
+button.green{background:#16a34a}
+.badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700}
+</style>
+</head>
+<body>
+<header><div style="font-weight:900">pazaryeriOS ADMIN</div><div><span id="mailStatus"></span> <button onclick="logout()" style="background:#222">Çıkış</button></div></header>
+<div id="loginBox" class="wrap" style="max-width:400px;margin-top:40px"><div class="card"><h3>Admin</h3><input id="email" value="admin@pazaryerios.com"><input id="pass" type="password" value="admin123"><button onclick="login()" style="width:100%;margin-top:10px">Giriş</button><div id="loginMsg" style="color:red;font-size:12px"></div></div></div>
+<div id="adminBox" class="wrap" style="display:none">
+<div class="card">
+<h3>📧 Mail Sistemi Durumu</h3>
+<div id="resendInfo" style="padding:12px;background:#f9fafb;border-radius:10px;font-size:13px;margin:10px 0"></div>
+<h4>Test Maili Gönder</h4>
+<div style="display:flex;gap:8px"><input id="testEmail" placeholder="test@gmail.com" style="flex:1"><button class="green" onclick="testMail()">Test Gönder →</button></div>
+<div id="testMsg" style="font-size:12px;margin-top:8px"></div>
+</div>
+<div class="card">
+<h3>🔧 Resend Kurulum Rehberi (1 dakika)</h3>
+<ol style="font-size:13px;line-height:1.8">
+<li><b>resend.com</b> git → Sign up (Google ile)</li>
+<li>Dashboard → <b>API Keys</b> → <b>Create API Key</b> → Key'i kopyala (re_xxxx...)</li>
+<li>Render.com → senin <b>pazaryerios</b> servisine gir → <b>Environment</b> → <b>Add Variable</b></li>
+<li>Key: <code>RESEND_API_KEY</code> Value: <code>re_xxx kopyaladığın key</code> → Save</li>
+<li>Bir tane daha ekle: Key: <code>FROM_EMAIL</code> Value: <code>PazaryeriOS &lt;onboarding@resend.dev&gt;</code></li>
+<li>Render otomatik yeniden deploy edecek → Log'da <b>RESEND:AKTIF</b> yazacak</li>
+<li>Buradan test maili gönder → Gerçek mail gelecek!</li>
+</ol>
+<p style="font-size:12px;color:#666">Ücretsiz: 3.000 mail/ay, 100 mail/gün. Kendi domainini bağlarsan sınır kalkar.</p>
+</div>
+<div class="card">
+<h3>📊 Son Mailler</h3>
+<div id="mailLogs" style="font-size:11px;max-height:300px;overflow:auto;background:#f9fafb;padding:10px;border-radius:8px"></div>
+<button onclick="loadStats()" style="margin-top:10px">Yenile</button>
+</div>
+</div>
+<script>
+let token=localStorage.getItem('admin_token');
+function checkAuth(){ if(token){ try{ const p=JSON.parse(atob(token.split('.')[1])); if(p.isAdmin){ showAdmin(); return; } }catch{} } document.getElementById('loginBox').style.display='block'; }
+async function login(){
+  const res=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('email').value,password:document.getElementById('pass').value})});
+  const d=await res.json(); if(!d.success){ document.getElementById('loginMsg').innerText=d.error; return; } localStorage.setItem('admin_token',d.token); token=d.token; showAdmin();
+}
+async function showAdmin(){ document.getElementById('loginBox').style.display='none'; document.getElementById('adminBox').style.display='grid'; loadStats(); }
+async function loadStats(){
+  const res=await fetch('/api/admin/stats',{headers:{Authorization:'Bearer '+token}}); const j=await res.json(); const d=j.data;
+  document.getElementById('resendInfo').innerHTML=`Resend Durumu: ${d.resendConfigured? '<span class="badge" style="background:#dcfce7;color:#166534">✅ AKTİF - Gerçek mail gidiyor</span>' : '<span class="badge" style="background:#fee2e2;color:#991b1b">❌ PASİF - Sadece log (API anahtarı yok)</span>'}<br>Toplam log: ${d.emailLogs.length}`;
+  document.getElementById('mailLogs').innerHTML=d.emailLogs.map(m=>`<div style="padding:6px 0;border-bottom:1px solid #eee"><b>${m.at}</b> | ${m.to} | ${m.subject} | <span style="color:${m.status.includes('sent')?'green':'orange'}">${m.status}</span> ${m.resendId? 'ID:'+m.resendId:''}</div>`).join('')||'Henüz mail yok';
+  document.getElementById('mailStatus').innerHTML=d.resendConfigured? '<span class="badge" style="background:#16a34a;color:#fff">Mail Aktif</span>' : '<span class="badge" style="background:#ef4444;color:#fff">Mail Pasif</span>';
+}
+async function testMail(){
+  const to=document.getElementById('testEmail').value; if(!to) return alert('Email yaz');
+  const msg=document.getElementById('testMsg'); msg.innerText='Gönderiliyor...';
+  const res=await fetch('/api/admin/test-email',{method:'POST',headers:{'Content-Type':'application/json', Authorization:'Bearer '+token}, body:JSON.stringify({to})});
+  const d=await res.json(); msg.innerText= d.success? '✅ Gönderildi! '+JSON.stringify(d.result.status) : 'Hata: '+JSON.stringify(d);
+  loadStats();
+}
+function logout(){ localStorage.removeItem('admin_token'); location.reload(); }
+checkAuth();
+</script>
+</body>
+</html>
